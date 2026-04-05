@@ -54,25 +54,25 @@
 **Súbory**: `src/app/(app)/accounts/page.tsx`, `src/app/api/accounts/route.ts`
 **Úloha**: Zoznam účtov s typom, menou, poradím. Pridať/editovať/deaktivovať (nie mazať). Drag & drop poradie (alebo šípky hore/dole). Seed skript vytvorí predvolené účty.
 **Vstup pre Clauda**: "Implementuj F2-1 — accounts CRUD"
-- [ ] hotovo
+- [x] hotovo
 
 ### F2-2: Snapshot formulár — mesačné zadávanie
 **Súbory**: `src/app/(app)/snapshots/page.tsx`, `src/app/(app)/snapshots/[month]/page.tsx`
 **Úloha**: Výber mesiaca (default = aktuálny). Grid všetkých účtov s input poľom pre každý. Null = nezadané (sivé). Uložiť všetky naraz (jedna server action). Vizuálna indikácia: zelená = zadané, sivá = prázdne. Po uložení redirect na dashboard.
 **Vstup pre Clauda**: "Implementuj F2-2 — snapshot formulár"
-- [ ] hotovo
+- [x] hotovo
 
 ### F2-3: Custom fields pre snapshots
 **Súbory**: `src/app/(app)/settings/custom-fields/page.tsx`, úprava F2-2
 **Úloha**: V nastaveniach pridaj/odober vlastné kolonky (label, typ). Objavia sa v snapshot formulári pod štandardnými poľami. Hodnoty uložené ako JSON v `Snapshot.note` (alebo pridaj `CustomFieldValue` tabuľku).
 **Vstup pre Clauda**: "Implementuj F2-3 — custom fields"
-- [ ] hotovo
+- [x] hotovo
 
 ### F2-4: Dashboard — net worth prehľad
 **Súbory**: `src/app/(app)/dashboard/page.tsx`, `src/components/charts/NetWorthChart.tsx`
 **Úloha**: Metric karty (celkový majetok, sporenie, cash, zmena od minulého mesiaca). Line chart: net worth v čase (Recharts). Bar chart: rozloženie majetku podľa účtu. Posledné 3 snapshoty v tabuľke.
 **Vstup pre Clauda**: "Implementuj F2-4 — dashboard"
-- [ ] hotovo
+- [x] hotovo
 
 ---
 

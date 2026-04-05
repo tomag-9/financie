@@ -63,6 +63,7 @@ export function AppNav({ hasJojAlert }: NavProps) {
     () => [
       { href: '/dashboard', label: 'Dashboard', shortLabel: 'Domov' },
       { href: '/accounts', label: 'Účty', shortLabel: 'Účty' },
+      { href: '/snapshots', label: 'Snapshoty', shortLabel: 'Mesiac' },
       { href: '/income', label: 'Zárobky', shortLabel: 'Príjem', showBadge: hasJojAlert },
       { href: '/investments', label: 'Investície', shortLabel: 'ETF' },
       { href: '/liabilities', label: 'Záväzky', shortLabel: 'Dlhy' },
@@ -102,7 +103,7 @@ export function AppNav({ hasJojAlert }: NavProps) {
       </aside>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white/95 px-2 py-1 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 md:hidden">
-        <ul className="grid grid-cols-6 gap-1">
+        <ul className="grid grid-cols-7 gap-1">
           {items.map((item) => {
             const active = isActivePath(pathname, item.href)
             return (

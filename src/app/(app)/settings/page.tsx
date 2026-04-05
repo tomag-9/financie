@@ -13,6 +13,12 @@ export default function SettingsPage() {
       >
         Otvoriť TOTP nastavenia
       </Link>
+      <Link
+        href="/settings/custom-fields"
+        className="ml-2 inline-flex rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
+      >
+        Snapshot custom fields
+      </Link>
     </section>
   )
 }
