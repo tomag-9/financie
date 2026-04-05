@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id         String     @id @default(cuid())
+  name       String
+  type       AccountType
+  currency   String     @default("EUR")
+  isActive   Boolean    @default(true)
+  sortOrder  Int        @default(0)
+  snapshots  Snapshot[]
+  createdAt  DateTime   @default(now())
+}
+
+model Snapshot {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id])
+  month     DateTime
+  balance   Decimal?
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, month])
+}
+
+model IncomeSource {
+  id       String        @id @default(cuid())
+  name     String
+  color    String        @default("#378ADD")
+  isActive Boolean       @default(true)
+  entries  IncomeEntry[]
+}
+
+model IncomeEntry {
+  id       String       @id @default(cuid())
+  sourceId String
+  source   IncomeSource @relation(fields: [sourceId], references: [id])
+  month    DateTime
+  amount   Decimal
+  note     String?
+
+  @@unique([sourceId, month])
+}
+
+model JojDetail {
+  id            String   @id @default(cuid())
+  month         DateTime @unique
+  streamCount   Int      @default(0)
+  ratePerStream Decimal  @default(0)
+  tvHonorar     Decimal  @default(0)
+  bonus         Decimal  @default(0)
+  expectedTotal Decimal
+  receivedTotal Decimal?
+  diff          Decimal?
+}
+
+model Liability {
+  id          String   @id @default(cuid())
+  name        String
+  totalAmount Decimal
+  remaining   Decimal
+  dueDate     DateTime?
+  category    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Investment {
+  id         String   @id @default(cuid())
+  ticker     String
+  isin       String?
+  name       String
+  platform   String
+  units      Decimal  @default(0)
+  avgPrice   Decimal?
+  entries    InvestmentEntry[]
+}
+
+model InvestmentEntry {
+  id           String     @id @default(cuid())
+  investmentId String
+  investment   Investment @relation(fields: [investmentId], references: [id])
+  month        DateTime
+  unitsAdded   Decimal    @default(0)
+  amountAdded  Decimal    @default(0)
+  priceAtTime  Decimal?
+
+  @@unique([investmentId, month])
+}
+
+model CustomField {
+  id         String          @id @default(cuid())
+  entityType String
+  label      String
+  fieldType  CustomFieldType
+  sortOrder  Int             @default(0)
+  isActive   Boolean         @default(true)
+}
+
+model Settings {
+  id   String @id @default("singleton")
+  data Json
+}
+
+enum AccountType {
+  BANK
+  INVESTMENT
+  CASH
+  PENSION
+}
+
+enum CustomFieldType {
+  TEXT
+  NUMBER
+  BOOLEAN
+}
