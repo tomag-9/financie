@@ -4,6 +4,14 @@ import { auth, signOut } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { AppNav } from '@/components/ui/nav'
 
+function IconLogout() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4 fill-none stroke-current stroke-2">
+      <path d="M10 17l5-5-5-5M15 12H3m10 7v2a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 async function logoutAction(): Promise<void> {
   'use server'
 
@@ -41,9 +49,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <form action={logoutAction}>
             <button
               type="submit"
-              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              aria-label="Odhlásiť"
+              className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              Odhlásiť
+              <IconLogout />
+              <span className="hidden sm:inline">Odhlásiť</span>
             </button>
           </form>
         </header>

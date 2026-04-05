@@ -11,7 +11,6 @@ type NavProps = {
 type NavItem = {
   href: string
   label: string
-  shortLabel: string
   icon: string
   showBadge?: boolean
 }
@@ -70,13 +69,13 @@ export function AppNav({ hasJojAlert }: NavProps) {
 
   const items: NavItem[] = useMemo(
     () => [
-      { href: '/dashboard', label: 'Dashboard', shortLabel: 'Domov', icon: 'M3 12h18M12 3v18' },
-      { href: '/accounts', label: 'Účty', shortLabel: 'Účty', icon: 'M4 7h16M4 12h16M4 17h16' },
-      { href: '/snapshots', label: 'Snapshoty', shortLabel: 'Mesiac', icon: 'M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z' },
-      { href: '/income', label: 'Zárobky', shortLabel: 'Príjem', icon: 'M4 14l4-4 3 3 5-6 4 4', showBadge: hasJojAlert },
-      { href: '/investments', label: 'Investície', shortLabel: 'ETF', icon: 'M3 17l6-6 4 4 8-8' },
-      { href: '/liabilities', label: 'Záväzky', shortLabel: 'Dlhy', icon: 'M4 12h16M12 4v16' },
-      { href: '/settings', label: 'Nastavenia', shortLabel: 'Nastav.', icon: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm8 4-2.2.7a6.8 6.8 0 0 1-.4 1l1.3 1.9-1.9 1.9-1.9-1.3a6.8 6.8 0 0 1-1 .4L12 20l-2.7-2.2a6.8 6.8 0 0 1-1-.4l-1.9 1.3-1.9-1.9 1.3-1.9a6.8 6.8 0 0 1-.4-1L4 12l2.2-.7a6.8 6.8 0 0 1 .4-1L5.3 8.4l1.9-1.9 1.9 1.3a6.8 6.8 0 0 1 1-.4L12 4l2.7 2.2a6.8 6.8 0 0 1 1 .4l1.9-1.3 1.9 1.9-1.3 1.9c.17.33.3.67.4 1L20 12Z' },
+      { href: '/dashboard', label: 'Dashboard', icon: 'M3 12h18M12 3v18' },
+      { href: '/accounts', label: 'Účty', icon: 'M4 7h16M4 12h16M4 17h16' },
+      { href: '/snapshots', label: 'Snapshoty', icon: 'M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z' },
+      { href: '/income', label: 'Zárobky', icon: 'M4 14l4-4 3 3 5-6 4 4', showBadge: hasJojAlert },
+      { href: '/investments', label: 'Investície', icon: 'M3 17l6-6 4 4 8-8' },
+      { href: '/liabilities', label: 'Záväzky', icon: 'M4 12h16M12 4v16' },
+      { href: '/settings', label: 'Nastavenia', icon: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm8 4-2.2.7a6.8 6.8 0 0 1-.4 1l1.3 1.9-1.9 1.9-1.9-1.3a6.8 6.8 0 0 1-1 .4L12 20l-2.7-2.2a6.8 6.8 0 0 1-1-.4l-1.9 1.3-1.9-1.9 1.3-1.9a6.8 6.8 0 0 1-.4-1L4 12l2.2-.7a6.8 6.8 0 0 1 .4-1L5.3 8.4l1.9-1.9 1.9 1.3a6.8 6.8 0 0 1 1-.4L12 4l2.7 2.2a6.8 6.8 0 0 1 1 .4l1.9-1.3 1.9 1.9-1.3 1.9c.17.33.3.67.4 1L20 12Z' },
     ],
     [hasJojAlert]
   )
@@ -122,16 +121,15 @@ export function AppNav({ hasJojAlert }: NavProps) {
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={`relative flex min-h-12 items-center justify-center rounded-md px-1 text-[11px] font-medium transition ${
+                  aria-label={item.label}
+                  title={item.label}
+                  className={`relative flex min-h-12 items-center justify-center rounded-md px-1 transition ${
                     active
                       ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
                       : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
                   }`}
                 >
-                  <span className="flex flex-col items-center gap-0.5">
-                    <Icon path={item.icon} />
-                    <span>{item.shortLabel}</span>
-                  </span>
+                  <Icon path={item.icon} />
                   {item.showBadge ? (
                     <span className="absolute right-1 top-1 size-2 rounded-full bg-rose-500" aria-hidden="true" />
                   ) : null}

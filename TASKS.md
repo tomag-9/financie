@@ -132,7 +132,7 @@
 **Súbory**: `src/app/(app)/liabilities/page.tsx`, `src/app/api/liabilities/route.ts`
 **Úloha**: Zoznam záväzkov s celkovou sumou, zostatok, dátum splatnosti, kategória. Pridať/editovať/označiť ako splatené. Dashboard: net worth po záväzkoch = net worth - SUM(remaining). Upozornenie pri záväzku s due_date < 30 dní.
 **Vstup pre Clauda**: "Implementuj F5-1 — liabilities modul"
-- [ ] hotovo
+- [x] hotovo
 
 ---
 

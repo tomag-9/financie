@@ -108,6 +108,16 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     }),
   ])
 
+  const activeLiabilities = await prisma.liability.findMany({
+    where: { isActive: true },
+    select: {
+      name: true,
+      remaining: true,
+      dueDate: true,
+    },
+    orderBy: [{ dueDate: 'asc' }, { createdAt: 'asc' }],
+  })
+
   const monthlySeries = calculateMonthlyNetWorth(
     snapshots.map((snapshot) => ({
       month: snapshot.month,
@@ -124,7 +134,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     investmentEntries.map((item) => ({ month: item.month, amount: item.amountAdded.toNumber() })),
   )
 
-  const activeLiabilities = liabilitiesAggregate._sum.remaining?.toNumber() ?? 0
+  const activeLiabilitiesTotal = liabilitiesAggregate._sum.remaining?.toNumber() ?? 0
   const selectedMonthDate = parseYearMonth(resolvedSearchParams?.month)
   const selectedMonthKey = selectedMonthDate ? toMonthKey(selectedMonthDate) : null
   const selectedIndexFromParam = selectedMonthKey
@@ -148,7 +158,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   const previousPoint = selectedIndex > 0 ? monthlySeries[selectedIndex - 1] : null
   const monthlyDelta = calculateMonthlyDelta(selectedPoint.netWorth, previousPoint?.netWorth ?? 0)
   const monthlyDeltaPct = calculateMonthlyDeltaPct(selectedPoint.netWorth, previousPoint?.netWorth ?? 0)
-  const netWorthAfterLiabilities = selectedPoint.netWorth - activeLiabilities
+  const netWorthAfterLiabilities = selectedPoint.netWorth - activeLiabilitiesTotal
   const totalIncomeForMonth = selectedSavings?.totalIncome ?? 0
   const totalInvestedForMonth = selectedSavings?.totalInvested ?? 0
   const savingsRateForMonth = calculateSavingsRate(totalInvestedForMonth, totalIncomeForMonth)
@@ -198,6 +208,23 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     })
     .reverse()
 
+  // Potrebujeme aktuálny čas na varovanie pred blížiacimi sa splatnosťami.
+  // eslint-disable-next-line react-hooks/purity
+  const nowUtc = Date.now()
+  const dueSoonLiabilities = activeLiabilities
+    .map((liability) => {
+      const dueDateMs = liability.dueDate ? liability.dueDate.getTime() : null
+      if (dueDateMs === null) return null
+      const daysUntilDue = Math.ceil((dueDateMs - nowUtc) / (24 * 60 * 60 * 1000))
+      if (daysUntilDue < 0 || daysUntilDue >= 30) return null
+      return {
+        name: liability.name,
+        daysUntilDue,
+        remaining: liability.remaining.toNumber(),
+      }
+    })
+    .filter((item): item is { name: string; daysUntilDue: number; remaining: number } => Boolean(item))
+
   return (
     <section className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-2">
@@ -239,6 +266,26 @@ export default async function DashboardPage({ searchParams }: PageProps) {
           <p className="mt-2 text-2xl font-semibold">{currencyFormatter.format(netWorthAfterLiabilities)}</p>
         </article>
       </div>
+
+      {dueSoonLiabilities.length > 0 ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+          <div className="flex items-start gap-2">
+            <span className="mt-0.5">⚠️</span>
+            <div>
+              <p className="font-semibold">Záväzky s blížiacim sa termínom</p>
+              <p className="text-sm">
+                {dueSoonLiabilities
+                  .slice(0, 3)
+                  .map((item) => {
+                    const label = item.daysUntilDue === 0 ? 'dnes' : item.daysUntilDue === 1 ? 'zajtra' : `o ${item.daysUntilDue} dní`
+                    return `${item.name} (${label})`
+                  })
+                  .join(', ')}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <NetWorthChart lineData={lineData} distributionData={distributionData} />
 
