@@ -104,25 +104,25 @@
 **Súbory**: `src/app/(app)/investments/page.tsx`, `src/app/api/investments/route.ts`
 **Úloha**: Zoznam pozícií (ticker, ISIN, platforma, počet kusov, priemerná cena). Pridať/editovať/archivovať. Groupovanie podľa platformy (XTB, Conseq, EIC).
 **Vstup pre Clauda**: "Implementuj F4-1 — investment positions"
-- [ ] hotovo
+- [x] hotovo
 
 ### F4-2: Mesačné investičné záznamy
 **Súbory**: `src/app/(app)/investments/[month]/page.tsx`
 **Úloha**: Pre každý mesiac: koľko kusov pribudlo, za akú sumu, pri akej cene. Celková investovaná suma mesiaca (ide aj do savings rate výpočtu).
 **Vstup pre Clauda**: "Implementuj F4-2 — monthly investment entries"
-- [ ] hotovo
+- [x] hotovo
 
 ### F4-3: Market data fetcher
 **Súbory**: `src/lib/market.ts`, `src/app/api/investments/refresh/route.ts`
 **Úloha**: `yahoo-finance2` fetch pre každý ticker. Cache výsledkov v SQLite (nové pole alebo `Settings.data`). Refresh ak cache > 6h. Endpoint `POST /api/investments/refresh`. Fallback: ak ticker nenájde → zobraziť naposledy known cenu so štítkom "stará cena".
 **Vstup pre Clauda**: "Implementuj F4-3 — market data fetcher"
-- [ ] hotovo
+- [x] hotovo
 
 ### F4-4: Portfolio štatistiky + TWRR
 **Súbory**: `src/lib/calculations.ts` (TWRR), `src/app/(app)/investments/stats/page.tsx`
 **Úloha**: Aktuálna hodnota portfólia (units × current price). Investovaná suma celkom. Nerealizovaný zisk/strata (€ + %). TWRR výpočet (time-weighted return, očistený od nových vkladov). Benchmark: porovnanie s VWCE/SPY ak má ticker (jeden request na benchmark ticker). Graf: hodnota portfólia v čase.
 **Vstup pre Clauda**: "Implementuj F4-4 — portfolio štatistiky a TWRR"
-- [ ] hotovo
+- [x] hotovo
 
 ---
 

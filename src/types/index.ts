@@ -57,11 +57,18 @@ export type InvestmentEntryWithInvestment = Prisma.InvestmentEntryGetPayload<{
 // Settings.data shape — stored as JSON in DB
 export interface SettingsData {
   password_hash?: string
+  passwordHash?: string
   totp_secret?: string
+  totpSecret?: string
   totp_enabled?: boolean
+  totpEnabled?: boolean
   backup_codes?: string[]        // bcrypt hashes of backup codes
+  backupCodes?: string[]
   push_subscription?: PushSubscriptionData
+  pushSubscription?: PushSubscriptionData
   savings_goal_pct?: number      // default 20
+  savingsTarget?: number
+  market_cache?: MarketCache
 }
 
 export interface PushSubscriptionData {

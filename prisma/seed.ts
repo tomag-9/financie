@@ -143,10 +143,10 @@ async function main() {
   // ─── Historické Sumár snapshoty (Jan–Apr 2026) ────────────────────────────
   const snapshots = [
     // [mesiac, { accountId: balance }]
-    ['2026-01', { tatra: 11945.36, cash: 2000, conseq: 30496.55, '2pilier': 59.43 }],
-    ['2026-02', { tatra: 15597.12, cash: 2000, conseq: 30366.90, '2pilier': 60.28 }],
-    ['2026-03', { tatra: 7202.32,  cash: 2000, conseq: 35992.80, xtb: 4500, '2pilier': 77.04 }],
-    ['2026-04', { tatra: 4741.21,  revolut: 112, cash: 2000, conseq: 35220.56, xtb: 5218.16, '2pilier': 75.03 }],
+    ['2026-01', { tatra: 11945.36, cash: 2000, conseq: 1346.61, eic: 30496.55, '2pilier': 59.43 }],
+    ['2026-02', { tatra: 15597.12, cash: 2000, conseq: 1306.96, eic: 30366.90, '2pilier': 60.28 }],
+    ['2026-03', { tatra: 7202.32,  cash: 2000, conseq: 1331.15, eic: 35992.80, xtb: 4500, '2pilier': 77.04 }],
+    ['2026-04', { tatra: 4741.21,  revolut: 112, cash: 2000, conseq: 1326.8, eic: 35220.56, xtb: 5218.16, '2pilier': 75.03 }],
   ]
 
   for (const [monthStr, balances] of snapshots) {
@@ -156,7 +156,7 @@ async function main() {
     for (const [accountId, balance] of Object.entries(balances as Record<string, number>)) {
       await prisma.snapshot.upsert({
         where: { accountId_month: { accountId, month: monthDate } },
-        update: {},
+        update: { balance },
         create: { accountId, month: monthDate, balance },
       })
     }

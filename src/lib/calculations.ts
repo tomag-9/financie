@@ -35,6 +35,34 @@ export type MonthlySavingsPoint = {
   savingsRate: number | null
 }
 
+export type PortfolioPositionForCalculation = {
+  units: number
+  currentPrice: number | null
+}
+
+export type PortfolioUnrealizedResult = {
+  gain: number
+  gainPct: number | null
+}
+
+export type MonthlyPortfolioFlow = {
+  month: Date
+  investmentId: string
+  ticker: string
+  unitsAdded: number
+  amountAdded: number
+}
+
+export type MarketQuoteForCalculation = {
+  price: number
+}
+
+export type MonthlyPortfolioEntry = {
+  month: Date
+  portfolioValue: number
+  cashFlow: number
+}
+
 export function toMonthKey(date: Date): string {
   const year = date.getUTCFullYear()
   const month = String(date.getUTCMonth() + 1).padStart(2, '0')
@@ -188,4 +216,99 @@ export function calculateMonthlySavingsSeries(
       totalInvested: value.totalInvested,
       savingsRate: calculateSavingsRate(value.totalInvested, value.totalIncome),
     }))
+}
+
+export function calculatePortfolioValue(positions: PortfolioPositionForCalculation[]): number {
+  return positions.reduce((acc, position) => {
+    if (position.currentPrice === null) {
+      return acc
+    }
+    return acc + position.units * position.currentPrice
+  }, 0)
+}
+
+export function calculatePortfolioUnrealizedGain(
+  totalPortfolioValue: number,
+  totalCostBasis: number,
+): PortfolioUnrealizedResult {
+  const gain = totalPortfolioValue - totalCostBasis
+  if (totalCostBasis === 0) {
+    return { gain, gainPct: null }
+  }
+
+  return {
+    gain,
+    gainPct: (gain / totalCostBasis) * 100,
+  }
+}
+
+export function buildMonthlyPortfolioSeries(
+  flows: MonthlyPortfolioFlow[],
+  quoteByTicker: Map<string, MarketQuoteForCalculation>,
+): MonthlyPortfolioEntry[] {
+  const byMonth = new Map<string, MonthlyPortfolioFlow[]>()
+
+  for (const flow of flows) {
+    const key = toMonthKey(flow.month)
+    const bucket = byMonth.get(key) ?? []
+    bucket.push(flow)
+    byMonth.set(key, bucket)
+  }
+
+  const months = [...byMonth.keys()].sort((left, right) => left.localeCompare(right))
+  const cumulativeUnits = new Map<string, number>()
+  const tickerByInvestment = new Map<string, string>()
+  const result: MonthlyPortfolioEntry[] = []
+
+  for (const monthKey of months) {
+    const monthFlows = byMonth.get(monthKey) ?? []
+    let cashFlow = 0
+
+    for (const flow of monthFlows) {
+      tickerByInvestment.set(flow.investmentId, flow.ticker)
+      const currentUnits = cumulativeUnits.get(flow.investmentId) ?? 0
+      cumulativeUnits.set(flow.investmentId, currentUnits + flow.unitsAdded)
+      cashFlow += flow.amountAdded
+    }
+
+    let portfolioValue = 0
+    for (const [investmentId, units] of cumulativeUnits.entries()) {
+      const ticker = tickerByInvestment.get(investmentId)
+      if (!ticker) continue
+
+      const quote = quoteByTicker.get(ticker)
+      if (!quote) continue
+
+      portfolioValue += units * quote.price
+    }
+
+    const monthDate = monthFlows[0]?.month ?? parseYearMonth(monthKey) ?? new Date()
+    result.push({
+      month: new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth(), 1)),
+      portfolioValue,
+      cashFlow,
+    })
+  }
+
+  return result
+}
+
+export function calculateTWRR(entries: MonthlyPortfolioEntry[]): number | null {
+  if (entries.length < 2) {
+    return null
+  }
+
+  let twrr = 1
+
+  for (let index = 1; index < entries.length; index += 1) {
+    const prev = entries[index - 1]
+    const curr = entries[index]
+    const beginValue = prev.portfolioValue + curr.cashFlow
+    if (beginValue === 0) continue
+
+    const subReturn = curr.portfolioValue / beginValue
+    twrr *= subReturn
+  }
+
+  return twrr - 1
 }
