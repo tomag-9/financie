@@ -38,7 +38,7 @@
 **Súbory**: `src/lib/totp.ts`, `src/app/(auth)/login/page.tsx`, `src/app/(app)/settings/totp/page.tsx`
 **Úloha**: Pri logine ak je TOTP aktívny → druhá obrazovka s 6-miestnym kódom. V settings: QR kód na zapnutie TOTP (otplib + qrcode). Backup codes (8 kusov, uložené ako bcrypt hash).
 **Vstup pre Clauda**: "Implementuj F1-3 — TOTP 2FA"
-- [ ] hotovo
+- [x] hotovo
 
 ### F1-4: Layout + navigácia
 **Súbory**: `src/app/(app)/layout.tsx`, `src/components/ui/nav.tsx`
