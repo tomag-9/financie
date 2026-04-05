@@ -44,7 +44,7 @@
 **Súbory**: `src/app/(app)/layout.tsx`, `src/components/ui/nav.tsx`
 **Úloha**: Sidebar navigácia (desktop) + bottom bar (mobil). Položky: Dashboard, Účty, Zárobky, Investície, Záväzky, Nastavenia. Badge na JOJ ak je diff > 5€. Dark mode toggle.
 **Vstup pre Clauda**: "Implementuj F1-4 — layout a navigácia"
-- [ ] hotovo
+- [x] hotovo
 
 ---
 
