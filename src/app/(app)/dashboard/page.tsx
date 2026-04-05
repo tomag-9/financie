@@ -1,12 +1,17 @@
 import { NetWorthChart } from '@/components/charts/NetWorthChart'
+import { SavingsRateChart } from '@/components/charts/SavingsRateChart'
 import {
+  calculateMonthlySavingsSeries,
   calculateMonthlyDelta,
   calculateMonthlyDeltaPct,
   calculateMonthlyNetWorth,
+  calculateSavingsRate,
+  calculateSavingsRateYTD,
   parseYearMonth,
   toMonthKey,
 } from '@/lib/calculations'
 import { prisma } from '@/lib/prisma'
+import type { SettingsData } from '@/types'
 
 const currencyFormatter = new Intl.NumberFormat('sk-SK', {
   style: 'currency',
@@ -82,6 +87,27 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     }),
   ])
 
+  const [incomeEntries, investmentEntries, settings] = await Promise.all([
+    prisma.incomeEntry.findMany({
+      orderBy: { month: 'asc' },
+      select: {
+        month: true,
+        amount: true,
+      },
+    }),
+    prisma.investmentEntry.findMany({
+      orderBy: { month: 'asc' },
+      select: {
+        month: true,
+        amountAdded: true,
+      },
+    }),
+    prisma.settings.findUnique({
+      where: { id: 'singleton' },
+      select: { data: true },
+    }),
+  ])
+
   const monthlySeries = calculateMonthlyNetWorth(
     snapshots.map((snapshot) => ({
       month: snapshot.month,
@@ -91,6 +117,11 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       accountSortOrder: snapshot.account.sortOrder,
       balance: snapshot.balance?.toNumber() ?? null,
     }))
+  )
+
+  const monthlySavings = calculateMonthlySavingsSeries(
+    incomeEntries.map((item) => ({ month: item.month, amount: item.amount.toNumber() })),
+    investmentEntries.map((item) => ({ month: item.month, amount: item.amountAdded.toNumber() })),
   )
 
   const activeLiabilities = liabilitiesAggregate._sum.remaining?.toNumber() ?? 0
@@ -113,14 +144,32 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   }
 
   const selectedPoint = monthlySeries[selectedIndex]
+  const selectedSavings = monthlySavings.find((point) => point.monthKey === selectedPoint.monthKey)
   const previousPoint = selectedIndex > 0 ? monthlySeries[selectedIndex - 1] : null
   const monthlyDelta = calculateMonthlyDelta(selectedPoint.netWorth, previousPoint?.netWorth ?? 0)
   const monthlyDeltaPct = calculateMonthlyDeltaPct(selectedPoint.netWorth, previousPoint?.netWorth ?? 0)
   const netWorthAfterLiabilities = selectedPoint.netWorth - activeLiabilities
+  const totalIncomeForMonth = selectedSavings?.totalIncome ?? 0
+  const totalInvestedForMonth = selectedSavings?.totalInvested ?? 0
+  const savingsRateForMonth = calculateSavingsRate(totalInvestedForMonth, totalIncomeForMonth)
+
+  const ytdYear = selectedPoint.monthDate.getUTCFullYear()
+  const ytdSavingsRate = calculateSavingsRateYTD(
+    monthlySavings.filter((point) => point.monthDate.getUTCFullYear() === ytdYear),
+  )
+
+  const settingsData = (settings?.data ?? {}) as SettingsData
+  const savingsGoalPct = settingsData.savings_goal_pct ?? 20
+  const goalProgress = savingsRateForMonth === null ? 0 : Math.min((savingsRateForMonth / savingsGoalPct) * 100, 100)
 
   const lineData = monthlySeries.map((point) => ({
     monthLabel: shortMonthFormatter.format(point.monthDate),
     netWorth: point.netWorth,
+  }))
+
+  const savingsTrendData = monthlySavings.slice(-12).map((point) => ({
+    monthLabel: shortMonthFormatter.format(point.monthDate),
+    savingsRate: point.savingsRate ?? 0,
   }))
 
   const latestPoint = monthlySeries[monthlySeries.length - 1]
@@ -192,6 +241,37 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       </div>
 
       <NetWorthChart lineData={lineData} distributionData={distributionData} />
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <article className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <h3 className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200">💸 Savings rate</h3>
+          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+            Investoval si{' '}
+            <span className="font-semibold text-zinc-900 dark:text-zinc-100">{currencyFormatter.format(totalInvestedForMonth)}</span>{' '}
+            z{' '}
+            <span className="font-semibold text-zinc-900 dark:text-zinc-100">{currencyFormatter.format(totalIncomeForMonth)}</span>{' '}
+            príjmu ={' '}
+            <span className="font-semibold text-blue-700 dark:text-blue-300">
+              {savingsRateForMonth === null ? 'N/A' : `${savingsRateForMonth.toFixed(2)} %`}
+            </span>
+          </p>
+
+          <div className="mt-3">
+            <div className="mb-1 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
+              <span>🎯 Cieľ: {savingsGoalPct.toFixed(0)} %</span>
+              <span>YTD: {ytdSavingsRate === null ? 'N/A' : `${ytdSavingsRate.toFixed(2)} %`}</span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+              <div className="h-full bg-blue-600 transition-all" style={{ width: `${goalProgress}%` }} />
+            </div>
+          </div>
+        </article>
+
+        <article className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <h3 className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200">📈 Savings trend</h3>
+          <SavingsRateChart data={savingsTrendData} />
+        </article>
+      </div>
 
       <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Posledné 3 mesiace snapshotov</h3>

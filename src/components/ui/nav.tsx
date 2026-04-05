@@ -12,6 +12,7 @@ type NavItem = {
   href: string
   label: string
   shortLabel: string
+  icon: string
   showBadge?: boolean
 }
 
@@ -56,18 +57,26 @@ function ThemeToggle() {
   )
 }
 
+function Icon({ path }: { path: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4 fill-none stroke-current stroke-2">
+      <path d={path} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function AppNav({ hasJojAlert }: NavProps) {
   const pathname = usePathname()
 
   const items: NavItem[] = useMemo(
     () => [
-      { href: '/dashboard', label: 'Dashboard', shortLabel: 'Domov' },
-      { href: '/accounts', label: 'Účty', shortLabel: 'Účty' },
-      { href: '/snapshots', label: 'Snapshoty', shortLabel: 'Mesiac' },
-      { href: '/income', label: 'Zárobky', shortLabel: 'Príjem', showBadge: hasJojAlert },
-      { href: '/investments', label: 'Investície', shortLabel: 'ETF' },
-      { href: '/liabilities', label: 'Záväzky', shortLabel: 'Dlhy' },
-      { href: '/settings', label: 'Nastavenia', shortLabel: 'Nastav.' },
+      { href: '/dashboard', label: 'Dashboard', shortLabel: 'Domov', icon: 'M3 12h18M12 3v18' },
+      { href: '/accounts', label: 'Účty', shortLabel: 'Účty', icon: 'M4 7h16M4 12h16M4 17h16' },
+      { href: '/snapshots', label: 'Snapshoty', shortLabel: 'Mesiac', icon: 'M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z' },
+      { href: '/income', label: 'Zárobky', shortLabel: 'Príjem', icon: 'M4 14l4-4 3 3 5-6 4 4', showBadge: hasJojAlert },
+      { href: '/investments', label: 'Investície', shortLabel: 'ETF', icon: 'M3 17l6-6 4 4 8-8' },
+      { href: '/liabilities', label: 'Záväzky', shortLabel: 'Dlhy', icon: 'M4 12h16M12 4v16' },
+      { href: '/settings', label: 'Nastavenia', shortLabel: 'Nastav.', icon: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm8 4-2.2.7a6.8 6.8 0 0 1-.4 1l1.3 1.9-1.9 1.9-1.9-1.3a6.8 6.8 0 0 1-1 .4L12 20l-2.7-2.2a6.8 6.8 0 0 1-1-.4l-1.9 1.3-1.9-1.9 1.3-1.9a6.8 6.8 0 0 1-.4-1L4 12l2.2-.7a6.8 6.8 0 0 1 .4-1L5.3 8.4l1.9-1.9 1.9 1.3a6.8 6.8 0 0 1 1-.4L12 4l2.7 2.2a6.8 6.8 0 0 1 1 .4l1.9-1.3 1.9 1.9-1.3 1.9c.17.33.3.67.4 1L20 12Z' },
     ],
     [hasJojAlert]
   )
@@ -92,7 +101,10 @@ export function AppNav({ hasJojAlert }: NavProps) {
                     : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800'
                 }`}
               >
-                <span>{item.label}</span>
+                <span className="inline-flex items-center gap-2">
+                  <Icon path={item.icon} />
+                  {item.label}
+                </span>
                 {item.showBadge ? (
                   <span className="rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-semibold text-white">JOJ</span>
                 ) : null}
@@ -116,7 +128,10 @@ export function AppNav({ hasJojAlert }: NavProps) {
                       : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
                   }`}
                 >
-                  {item.shortLabel}
+                  <span className="flex flex-col items-center gap-0.5">
+                    <Icon path={item.icon} />
+                    <span>{item.shortLabel}</span>
+                  </span>
                   {item.showBadge ? (
                     <span className="absolute right-1 top-1 size-2 rounded-full bg-rose-500" aria-hidden="true" />
                   ) : null}

@@ -82,19 +82,19 @@
 **Súbory**: `src/app/(app)/income/page.tsx`, `src/app/api/income/route.ts`
 **Úloha**: Zoznam zdrojov zárobkov. Pre každý mesiac: zadaj sumu per zdroj. Celkový súčet mesiaca. Graf: zárobky per zdroj per mesiac (stacked bar).
 **Vstup pre Clauda**: "Implementuj F3-1 — income module"
-- [ ] hotovo
+- [x] hotovo
 
 ### F3-2: JOJ detail modul
 **Súbory**: `src/app/(app)/income/joj/page.tsx`, `src/app/api/income/joj/route.ts`
 **Úloha**: Formulár: počet streamov, €/stream (default 40), TV honorár, bonus → automatický výpočet "malo by prísť". Pole "reálne prijaté". Automatický diff + farebné zvýraznenie (červená ak |diff| > 5€). Štatistiky: priemer streamov/mesiac, €/stream trend, najlepší mesiac, celkovo od začiatku.
 **Vstup pre Clauda**: "Implementuj F3-2 — JOJ detail"
-- [ ] hotovo
+- [x] hotovo
 
 ### F3-3: Savings rate štatistiky
 **Súbory**: `src/lib/calculations.ts`, úprava dashboard
 **Úloha**: Savings rate = investované / príjem × 100. Progress bar voči cieľu (nastaviteľný v settings, default 20%). Mesačný trend. "Investoval si X€ z Y€ príjmu = Z%"
 **Vstup pre Clauda**: "Implementuj F3-3 — savings rate"
-- [ ] hotovo
+- [x] hotovo
 
 ---
 

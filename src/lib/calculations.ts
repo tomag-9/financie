@@ -22,6 +22,19 @@ export type MonthlyNetWorthPoint = {
   accountTotals: MonthlyAccountTotal[]
 }
 
+export type MoneyEntryForCalculation = {
+  month: Date
+  amount: number | null
+}
+
+export type MonthlySavingsPoint = {
+  monthKey: string
+  monthDate: Date
+  totalIncome: number
+  totalInvested: number
+  savingsRate: number | null
+}
+
 export function toMonthKey(date: Date): string {
   const year = date.getUTCFullYear()
   const month = String(date.getUTCMonth() + 1).padStart(2, '0')
@@ -111,4 +124,68 @@ export function calculateMonthlyDeltaPct(currentNetWorth: number, previousNetWor
   }
 
   return (calculateMonthlyDelta(currentNetWorth, previousNetWorth) / previousNetWorth) * 100
+}
+
+export function calculateSavingsRate(totalInvested: number, totalIncome: number): number | null {
+  if (totalIncome === 0) {
+    return null
+  }
+
+  return (totalInvested / totalIncome) * 100
+}
+
+export function calculateSavingsRateYTD(points: MonthlySavingsPoint[]): number | null {
+  const totalIncome = points.reduce((acc, point) => acc + point.totalIncome, 0)
+  const totalInvested = points.reduce((acc, point) => acc + point.totalInvested, 0)
+  return calculateSavingsRate(totalInvested, totalIncome)
+}
+
+export function calculateMonthlySavingsSeries(
+  incomeEntries: MoneyEntryForCalculation[],
+  investmentEntries: MoneyEntryForCalculation[],
+): MonthlySavingsPoint[] {
+  const byMonth = new Map<
+    string,
+    {
+      monthDate: Date
+      totalIncome: number
+      totalInvested: number
+    }
+  >()
+
+  for (const entry of incomeEntries) {
+    const monthKey = toMonthKey(entry.month)
+    const bucket =
+      byMonth.get(monthKey) ?? {
+        monthDate: new Date(Date.UTC(entry.month.getUTCFullYear(), entry.month.getUTCMonth(), 1)),
+        totalIncome: 0,
+        totalInvested: 0,
+      }
+
+    bucket.totalIncome += entry.amount ?? 0
+    byMonth.set(monthKey, bucket)
+  }
+
+  for (const entry of investmentEntries) {
+    const monthKey = toMonthKey(entry.month)
+    const bucket =
+      byMonth.get(monthKey) ?? {
+        monthDate: new Date(Date.UTC(entry.month.getUTCFullYear(), entry.month.getUTCMonth(), 1)),
+        totalIncome: 0,
+        totalInvested: 0,
+      }
+
+    bucket.totalInvested += entry.amount ?? 0
+    byMonth.set(monthKey, bucket)
+  }
+
+  return [...byMonth.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([monthKey, value]) => ({
+      monthKey,
+      monthDate: value.monthDate,
+      totalIncome: value.totalIncome,
+      totalInvested: value.totalInvested,
+      savingsRate: calculateSavingsRate(value.totalInvested, value.totalIncome),
+    }))
 }
