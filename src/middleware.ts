@@ -15,14 +15,16 @@ export default auth((req) => {
 
   if (!isLoggedIn && !isPublic) {
     const loginUrl = new URL('/login', req.url)
-    loginUrl.searchParams.set('callbackUrl', pathname)
+    const callbackUrl = `${pathname}${req.nextUrl.search}`
+    loginUrl.searchParams.set('callbackUrl', callbackUrl)
     return NextResponse.redirect(loginUrl)
   }
 
   if (isLoggedIn && totpRequired && !totpVerified && !pathname.startsWith('/login')) {
     const loginUrl = new URL('/login', req.url)
     loginUrl.searchParams.set('step', 'totp')
-    loginUrl.searchParams.set('callbackUrl', pathname)
+    const callbackUrl = `${pathname}${req.nextUrl.search}`
+    loginUrl.searchParams.set('callbackUrl', callbackUrl)
     return NextResponse.redirect(loginUrl)
   }
 

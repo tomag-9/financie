@@ -10,7 +10,8 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: file:/data/financie.db
-      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      NEXTAUTH_URL: https://finance.tomag.xyz
+      AUTH_TRUST_HOST: "true"
       AUTH_SECRET: ${AUTH_SECRET}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
@@ -24,6 +25,21 @@ services:
       SEED_DATA_DECODE_PASSWORD: ${SEED_DATA_DECODE_PASSWORD:-}
     volumes:
       - financie_data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.financie.rule=Host(`finance.tomag.xyz`)"
+      - "traefik.http.routers.financie.entrypoints=websecure"
+      - "traefik.http.routers.financie.tls=true"
+      - "traefik.http.routers.financie.tls.certresolver=letsencrypt"
+      - "traefik.http.services.financie.loadbalancer.server.port=3000"
+    networks:
+      - default
+      - traefik
 
 volumes:
   financie_data:
+
+networks:
+  traefik:
+    external: true
