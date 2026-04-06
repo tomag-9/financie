@@ -1,36 +1,84 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Financie
 
-## Getting Started
+Self-hosted osobna appka na mesacne sledovanie financii (ucty, prijmy, investicie, zavazky).
 
-First, run the development server:
+## Stack
+- Next.js App Router + TypeScript
+- Prisma + SQLite
+- NextAuth credentials + TOTP
+- Tailwind CSS
+- Recharts
+- web-push + service worker
+
+## Lokalny development
+1. Nainstaluj dependencies:
+
+```bash
+npm install
+```
+
+2. Vytvor env subor:
+
+```bash
+cp ENV_TEMPLATE.md .env.local
+```
+
+3. Nastav `DATABASE_URL` (napr. `file:./financie.db`) a dopln tajne hodnoty.
+
+4. Aplikuj migracie:
+
+```bash
+npx prisma migrate deploy
+```
+
+5. Napln DB seed datami:
+
+```bash
+npm run db:seed
+```
+
+6. Spusti appku:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Seed poznamky
+- Seed je idempotentny pre mutable data (upravi existujuce records, nevytvara stale nove).
+- Seed normalizuje month na UTC prvy den mesiaca.
+- Pri prvom seede sa nacita `ADMIN_PASSWORD` a ulozi sa jeho hash do `Settings.data.password_hash`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Produkcny deploy (Docker / Dokploy)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Build a run cez Docker Compose
 
-## Learn More
+```bash
+docker compose up -d --build
+```
 
-To learn more about Next.js, take a look at the following resources:
+Compose automaticky:
+- mountne persistent volume na `/data`
+- pouzije `DATABASE_URL=file:/data/financie.db`
+- pred startom appky spusti `prisma migrate deploy`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Dokploy odporucanie
+- Source: tento repo
+- Build: `Dockerfile`
+- Persistent volume: mount na `/data`
+- Env: nastav v UI (necommituj `.env.local`)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## PWA a push
+- Manifest: `public/manifest.json`
+- Service worker: `public/sw.js`
+- SW sa registruje v root layoute.
+- Push subscription endpoint: `POST /api/push`
+- Cron trigger endpoint: `POST /api/cron`
+  - ak je nastaveny `CRON_SECRET`, posli `Authorization: Bearer <CRON_SECRET>`
 
-## Deploy on Vercel
+## Utility prikazy
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run lint
+npm run build
+npx prisma studio
+```

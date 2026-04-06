@@ -155,11 +155,12 @@ export function calculateMonthlyDeltaPct(currentNetWorth: number, previousNetWor
 }
 
 export function calculateSavingsRate(totalInvested: number, totalIncome: number): number | null {
-  if (totalIncome === 0) {
+  if (totalIncome <= 0) {
     return null
   }
 
-  return (totalInvested / totalIncome) * 100
+  const rawRate = (totalInvested / totalIncome) * 100
+  return Math.max(0, Math.min(rawRate, 100))
 }
 
 export function calculateSavingsRateYTD(points: MonthlySavingsPoint[]): number | null {
@@ -298,17 +299,22 @@ export function calculateTWRR(entries: MonthlyPortfolioEntry[]): number | null {
     return null
   }
 
+  const normalized = [...entries].sort((left, right) => left.month.getTime() - right.month.getTime())
   let twrr = 1
+  let hasValidPeriod = false
 
-  for (let index = 1; index < entries.length; index += 1) {
-    const prev = entries[index - 1]
-    const curr = entries[index]
+  for (let index = 1; index < normalized.length; index += 1) {
+    const prev = normalized[index - 1]
+    const curr = normalized[index]
     const beginValue = prev.portfolioValue + curr.cashFlow
-    if (beginValue === 0) continue
+    if (beginValue <= 0) continue
 
     const subReturn = curr.portfolioValue / beginValue
+    if (!Number.isFinite(subReturn) || subReturn <= 0) continue
+
     twrr *= subReturn
+    hasValidPeriod = true
   }
 
-  return twrr - 1
+  return hasValidPeriod ? twrr - 1 : null
 }

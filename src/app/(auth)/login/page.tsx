@@ -144,10 +144,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const showTotpStep = needsTotp || requestedStep === 'totp'
 
   const errorLabel = (() => {
-    if (error === 'missing_password') return 'Zadaj heslo.'
-    if (error === 'invalid_credentials') return 'Nesprávne heslo.'
-    if (error === 'missing_code') return 'Zadaj 6-miestny TOTP kód alebo backup kód.'
-    if (error === 'invalid_code') return 'Neplatný TOTP alebo backup kód.'
+    if (error === 'missing_password') return 'Enter a password.'
+    if (error === 'invalid_credentials') return 'Invalid password.'
+    if (error === 'missing_code') return 'Enter the 6-digit TOTP code or a backup code.'
+    if (error === 'invalid_code') return 'Invalid TOTP or backup code.'
     return null
   })()
 
@@ -156,7 +156,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Financie</h1>
         <p className="mt-2 text-sm text-zinc-600">
-          {showTotpStep ? 'Over druhý faktor pre dokončenie prihlásenia.' : 'Prihlás sa admin heslom.'}
+          {showTotpStep ? 'Verify the second factor to complete sign in.' : 'Sign in with the admin password.'}
         </p>
 
         {errorLabel ? (
@@ -169,7 +169,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
             <div className="space-y-2">
               <label htmlFor="code" className="block text-sm font-medium text-zinc-800">
-                TOTP alebo backup kód
+                TOTP or backup code
               </label>
               <input
                 id="code"
@@ -185,7 +185,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               type="submit"
               className="w-full rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
             >
-              Overiť kód
+              Verify code
             </button>
           </form>
         ) : (
@@ -193,7 +193,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <input type="hidden" name="callbackUrl" value={callbackUrl} />
             <div className="space-y-2">
               <label htmlFor="password" className="block text-sm font-medium text-zinc-800">
-                Heslo
+                Password
               </label>
               <input
                 id="password"
@@ -209,7 +209,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               type="submit"
               className="w-full rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
             >
-              Prihlásiť sa
+              Sign in
             </button>
           </form>
         )}
@@ -217,15 +217,15 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         {session ? (
           <form action={logoutAction} className="mt-4">
             <button type="submit" className="text-sm text-zinc-600 underline hover:text-zinc-800">
-              Odhlásiť sa
+              Sign out
             </button>
           </form>
         ) : null}
 
         <div className="mt-6 border-t border-zinc-100 pt-4 text-xs text-zinc-500">
-          Nastavenie 2FA nájdeš po prihlásení v časti{' '}
+          Find 2FA setup after signing in under{' '}
           <Link href="/settings/totp" className="font-medium text-zinc-700 underline">
-            Nastavenia → TOTP
+            Settings → TOTP
           </Link>
           .
         </div>

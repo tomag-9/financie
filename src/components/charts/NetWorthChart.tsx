@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -28,6 +29,15 @@ type NetWorthChartProps = {
   distributionData: BarPoint[]
 }
 
+type HistoryRange = '6M' | '12M' | '24M' | 'ALL'
+
+const HISTORY_OPTIONS: Array<{ value: HistoryRange; label: string; count?: number }> = [
+  { value: '6M', label: '6M', count: 6 },
+  { value: '12M', label: '12M', count: 12 },
+  { value: '24M', label: '24M', count: 24 },
+  { value: 'ALL', label: 'All' },
+]
+
 const BAR_COLORS = ['#0f766e', '#0369a1', '#d97706', '#be123c', '#334155', '#15803d', '#a16207']
 
 const currencyFormatter = new Intl.NumberFormat('sk-SK', {
@@ -46,13 +56,35 @@ function formatTooltipValue(value: number | string | ReadonlyArray<number | stri
 }
 
 export function NetWorthChart({ lineData, distributionData }: NetWorthChartProps) {
+  const [range, setRange] = useState<HistoryRange>('12M')
+
+  const visibleLineData = useMemo(() => {
+    const option = HISTORY_OPTIONS.find((item) => item.value === range)
+    if (!option?.count) return lineData
+    return lineData.slice(-option.count)
+  }, [lineData, range])
+
   return (
     <div className="grid gap-4 xl:grid-cols-2">
       <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-200">Net worth v čase</h3>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Net worth over time</h3>
+          <div className="flex flex-wrap gap-2">
+            {HISTORY_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setRange(option.value)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition ${range === option.value ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'border border-zinc-300 text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800'}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="h-72 w-full">
           <ResponsiveContainer>
-            <LineChart data={lineData} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
+            <LineChart data={visibleLineData} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#d4d4d8" />
               <XAxis dataKey="monthLabel" tick={{ fontSize: 12 }} />
               <YAxis tickFormatter={(value) => currencyFormatter.format(Number(value))} width={110} tick={{ fontSize: 12 }} />
@@ -64,7 +96,7 @@ export function NetWorthChart({ lineData, distributionData }: NetWorthChartProps
       </div>
 
       <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-200">Rozloženie aktív podľa účtov (latest)</h3>
+        <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-200">Asset distribution by account (latest)</h3>
         <div className="h-72 w-full">
           <ResponsiveContainer>
             <BarChart data={distributionData} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>

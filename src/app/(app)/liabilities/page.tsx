@@ -305,19 +305,19 @@ export default function LiabilitiesPage() {
   return (
     <section className="space-y-6">
       <header className="space-y-2">
-        <h2 className="text-2xl font-semibold tracking-tight">Záväzky</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">Liabilities</h2>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-1 font-medium text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
             {icon('M4 12h16M12 4v16')}
-            Aktívne {currencyFormatter.format(activeTotal)}
+            Active {currencyFormatter.format(activeTotal)}
           </span>
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
             {icon('M12 9v4m0 4h.01M10.3 5.2 3.1 18a2 2 0 0 0 1.7 3h14.4a2 2 0 0 0 1.7-3L13.7 5.2a2 2 0 0 0-3.4 0Z')}
-            Do 30 dní {dueSoonItems.length}
+            Due in 30 days {dueSoonItems.length}
           </span>
           <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-1 font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
             {icon('M5 12h14')}
-            Splatené {paidCount}
+            Paid {paidCount}
           </span>
         </div>
       </header>
@@ -327,7 +327,7 @@ export default function LiabilitiesPage() {
           <div className="flex items-start gap-2">
             <span className="mt-0.5">{icon('M12 9v4m0 4h.01M10.3 5.2 3.1 18a2 2 0 0 0 1.7 3h14.4a2 2 0 0 0 1.7-3L13.7 5.2a2 2 0 0 0-3.4 0Z')}</span>
             <div>
-              <p className="font-semibold">Máme záväzky s blížiacim sa termínom</p>
+              <p className="font-semibold">There are liabilities with upcoming due dates</p>
               <p className="text-sm">
                 {dueSoonItems
                   .slice(0, 3)
@@ -348,13 +348,13 @@ export default function LiabilitiesPage() {
         className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
       >
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">
-          Pridať záväzok
+          Add liability
         </h3>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <input
             value={newForm.name}
             onChange={(event) => setNewForm((prev) => ({ ...prev, name: event.target.value }))}
-            placeholder="Názov záväzku"
+            placeholder="Liability name"
             className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none ring-zinc-400 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-950"
           />
           <input
@@ -364,7 +364,7 @@ export default function LiabilitiesPage() {
             inputMode="decimal"
             min="0"
             step="0.01"
-            placeholder="Celková suma"
+            placeholder="Total amount"
             className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none ring-zinc-400 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-950"
           />
           <input
@@ -374,7 +374,7 @@ export default function LiabilitiesPage() {
             inputMode="decimal"
             min="0"
             step="0.01"
-            placeholder="Zostatok (voliteľné)"
+            placeholder="Remaining balance (optional)"
             className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none ring-zinc-400 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-950"
           />
           <input
@@ -386,7 +386,7 @@ export default function LiabilitiesPage() {
           <input
             value={newForm.category}
             onChange={(event) => setNewForm((prev) => ({ ...prev, category: event.target.value }))}
-            placeholder="Kategória (pôžička, kreditka, iné)"
+            placeholder="Category (loan, credit card, other)"
             className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none ring-zinc-400 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-950"
           />
           <label className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200">
@@ -396,7 +396,7 @@ export default function LiabilitiesPage() {
               onChange={(event) => setNewForm((prev) => ({ ...prev, isActive: event.target.checked }))}
               className="size-4 rounded border-zinc-300"
             />
-            Aktívny
+            Active
           </label>
         </div>
 
@@ -407,7 +407,7 @@ export default function LiabilitiesPage() {
             className="inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
           >
             {icon('M12 5v14M5 12h14')}
-            {creating ? 'Ukladám...' : 'Pridať záväzok'}
+            {creating ? 'Saving...' : 'Add liability'}
           </button>
         </div>
       </form>
@@ -427,11 +427,11 @@ export default function LiabilitiesPage() {
       <div className="grid gap-3">
         {loading ? (
           <p className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-            Načítavam záväzky...
+            Loading liabilities...
           </p>
         ) : sortedLiabilities.length === 0 ? (
           <p className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-            Zatiaľ nemáš žiadny záväzok.
+            You do not have any liabilities yet.
           </p>
         ) : (
           sortedLiabilities.map((item) => {
@@ -520,26 +520,26 @@ export default function LiabilitiesPage() {
                         <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">{item.name}</h3>
                         {!item.isActive ? (
                           <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">
-                            splatené
+                            paid
                           </span>
                         ) : null}
                         {dueSoon ? (
                           <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-semibold text-amber-900 dark:bg-amber-900 dark:text-amber-100">
-                            termín sa blíži
+                            due soon
                           </span>
                         ) : null}
                         {overdue ? (
                           <span className="rounded-full bg-rose-200 px-2 py-0.5 text-[10px] font-semibold text-rose-900 dark:bg-rose-900 dark:text-rose-100">
-                            po termíne
+                            overdue
                           </span>
                         ) : null}
                       </div>
                       <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                        {item.category ?? 'Bez kategórie'} · Splatnosť {formatDueDate(item.dueDate)}
-                        {days !== null && item.isActive ? ` · ${days === 0 ? 'dnes' : days === 1 ? 'zajtra' : days > 1 ? `o ${days} dní` : `${Math.abs(days)} dní po termíne`}` : ''}
+                        {item.category ?? 'No category'} · Due {formatDueDate(item.dueDate)}
+                        {days !== null && item.isActive ? ` · ${days === 0 ? 'today' : days === 1 ? 'tomorrow' : days > 1 ? `in ${days} days` : `${Math.abs(days)} days overdue`}` : ''}
                       </p>
                       <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                        Celkom {currencyFormatter.format(item.totalAmount)} · Zostatok {currencyFormatter.format(item.remaining)}
+                        Total {currencyFormatter.format(item.totalAmount)} · Remaining {currencyFormatter.format(item.remaining)}
                       </p>
                     </div>
 
@@ -550,7 +550,7 @@ export default function LiabilitiesPage() {
                         className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
                       >
                         {icon('M4 20h4l10-10-4-4L4 16v4Z')}
-                        Upraviť
+                        Edit
                       </button>
                       <button
                         type="button"
@@ -559,7 +559,7 @@ export default function LiabilitiesPage() {
                         className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
                       >
                         {icon('M5 12l4 4L19 6')}
-                        Splatené
+                        Mark paid
                       </button>
                     </div>
                   </div>

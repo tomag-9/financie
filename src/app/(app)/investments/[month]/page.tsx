@@ -8,10 +8,12 @@ type MonthRow = {
   ticker: string
   name: string
   platform: string
+  assetType: string
   currentUnits: number
   avgPrice: number | null
   entry: {
     id: string
+    entryType: string
     unitsAdded: number
     amountAdded: number
     priceAtTime: number | null
@@ -19,6 +21,7 @@ type MonthRow = {
 }
 
 type DraftRow = {
+  entryType: string
   unitsAdded: string
   amountAdded: string
   priceAtTime: string
@@ -91,7 +94,7 @@ export default function InvestmentsMonthPage() {
       const response = await fetch(`/api/investments/entries?month=${targetMonth}`, { cache: 'no-store' })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error ?? 'Nepodarilo sa načítať mesačné investície.')
+        throw new Error(data.error ?? 'Failed to load monthly investments.')
       }
 
       const nextRows = (data.rows ?? []) as MonthRow[]
@@ -101,6 +104,7 @@ export default function InvestmentsMonthPage() {
       const nextDrafts: Record<string, DraftRow> = {}
       for (const row of nextRows) {
         nextDrafts[row.investmentId] = {
+            entryType: row.entry?.entryType ?? 'RECURRING',
           unitsAdded: row.entry ? String(row.entry.unitsAdded) : '',
           amountAdded: row.entry ? String(row.entry.amountAdded) : '',
           priceAtTime: row.entry?.priceAtTime != null ? String(row.entry.priceAtTime) : '',
@@ -108,7 +112,7 @@ export default function InvestmentsMonthPage() {
       }
       setDrafts(nextDrafts)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nepodarilo sa načítať mesačné investície.')
+      setError(err instanceof Error ? err.message : 'Failed to load monthly investments.')
     } finally {
       setLoading(false)
     }
@@ -140,6 +144,7 @@ export default function InvestmentsMonthPage() {
           month,
           rows: rows.map((row) => ({
             investmentId: row.investmentId,
+            entryType: drafts[row.investmentId]?.entryType ?? 'RECURRING',
             unitsAdded: drafts[row.investmentId]?.unitsAdded ?? '',
             amountAdded: drafts[row.investmentId]?.amountAdded ?? '',
             priceAtTime: drafts[row.investmentId]?.priceAtTime ?? '',
@@ -149,14 +154,14 @@ export default function InvestmentsMonthPage() {
 
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error ?? 'Nepodarilo sa uložiť mesačné investície.')
+        throw new Error(data.error ?? 'Failed to save monthly investments.')
       }
 
-      setMessage('Mesačné investície boli uložené.')
+      setMessage('Monthly investments saved.')
       setTotalInvested(Number(data.totalInvested ?? 0))
       await loadMonth(month)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nepodarilo sa uložiť mesačné investície.')
+      setError(err instanceof Error ? err.message : 'Failed to save monthly investments.')
     } finally {
       setSaving(false)
     }
@@ -165,7 +170,7 @@ export default function InvestmentsMonthPage() {
   return (
     <section className="space-y-5">
       <header className="space-y-2">
-        <h2 className="text-2xl font-semibold tracking-tight">Mesačné investície</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">Monthly investments</h2>
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
             {icon('M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z')}
@@ -173,11 +178,11 @@ export default function InvestmentsMonthPage() {
           </span>
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
             {icon('M4 12h16M4 12l4 4m-4-4 4-4')}
-            Uložené {currencyFormatter.format(totalInvested)}
+            Saved {currencyFormatter.format(totalInvested)}
           </span>
           <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-1 text-xs font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
             {icon('M3 17l6-6 4 4 8-8')}
-            Náhľad {currencyFormatter.format(draftMonthTotal)}
+            Preview {currencyFormatter.format(draftMonthTotal)}
           </span>
         </div>
       </header>
@@ -185,7 +190,7 @@ export default function InvestmentsMonthPage() {
       <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <label htmlFor="investments-month-picker" className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
-            Mesiac
+            Month
           </label>
           <input
             id="investments-month-picker"
@@ -211,11 +216,11 @@ export default function InvestmentsMonthPage() {
 
       {loading ? (
         <p className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-          Načítavam investičné záznamy...
+          Loading investment records...
         </p>
       ) : rows.length === 0 ? (
         <p className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-          Najprv vytvor investičné pozície v sekcii Investície.
+          Create investment positions in Investments first.
         </p>
       ) : (
         <div className="space-y-3">
@@ -227,9 +232,29 @@ export default function InvestmentsMonthPage() {
                   <div>
                     <p className="font-medium text-zinc-900 dark:text-zinc-100">{row.ticker} · {row.name}</p>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                      {row.platform} · Aktuálne kusy {row.currentUnits.toFixed(4)} · Priemer {row.avgPrice ? currencyFormatter.format(row.avgPrice) : 'N/A'}
+                      {row.platform} · {row.assetType} · Current units {row.currentUnits.toFixed(4)} · Avg {row.avgPrice ? currencyFormatter.format(row.avgPrice) : 'N/A'}
                     </p>
                   </div>
+                  <label className="inline-flex items-center gap-2 rounded-full border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 dark:border-zinc-700 dark:text-zinc-200">
+                    <span className="text-zinc-500 dark:text-zinc-400">Mode</span>
+                    <select
+                      value={draft.entryType}
+                      onChange={(event) => {
+                        const value = event.target.value
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [row.investmentId]: {
+                            ...draft,
+                            entryType: value,
+                          },
+                        }))
+                      }}
+                      className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                    >
+                      <option value="RECURRING">Recurring</option>
+                      <option value="ONE_OFF">One-off</option>
+                    </select>
+                  </label>
                 </div>
 
                 <div className="grid gap-2 sm:grid-cols-3">
@@ -249,7 +274,7 @@ export default function InvestmentsMonthPage() {
                         },
                       }))
                     }}
-                    placeholder="Pribudnuté kusy"
+                    placeholder="Units added"
                     className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                   />
                   <input
@@ -268,7 +293,7 @@ export default function InvestmentsMonthPage() {
                         },
                       }))
                     }}
-                    placeholder="Investovaná suma"
+                    placeholder="Amount invested"
                     className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                   />
                   <input
@@ -287,7 +312,7 @@ export default function InvestmentsMonthPage() {
                         },
                       }))
                     }}
-                    placeholder="Cena pri nákupe"
+                    placeholder="Purchase price"
                     className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                   />
                 </div>
@@ -303,7 +328,7 @@ export default function InvestmentsMonthPage() {
               className="inline-flex items-center justify-center gap-1 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
             >
               {icon('M5 12l4 4L19 6')}
-              {saving ? 'Ukladám...' : 'Uložiť všetko'}
+              {saving ? 'Saving...' : 'Save all'}
             </button>
           </div>
         </div>

@@ -6,7 +6,7 @@ import { AppNav } from '@/components/ui/nav'
 
 function IconLogout() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4 fill-none stroke-current stroke-2">
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5 fill-none stroke-current stroke-[2.25]">
       <path d="M10 17l5-5-5-5M15 12H3m10 7v2a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
@@ -42,18 +42,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex min-h-screen flex-1 flex-col pb-16 md:pb-0">
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/90 md:px-6">
           <div>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">Prihlásený používateľ</p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">Logged in as</p>
             <h1 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{session.user?.name ?? 'Tomi'}</h1>
           </div>
 
           <form action={logoutAction}>
             <button
               type="submit"
-              aria-label="Odhlásiť"
+              aria-label="Sign out"
               className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               <IconLogout />
-              <span className="hidden sm:inline">Odhlásiť</span>
+              <span className="hidden sm:inline">Sign out</span>
             </button>
           </form>
         </header>

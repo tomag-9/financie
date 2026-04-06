@@ -1,0 +1,26 @@
+services:
+  financie:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: financie-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: file:/data/financie.db
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      AUTH_SECRET: ${AUTH_SECRET}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_EMAIL: ${VAPID_EMAIL}
+      ENABLE_CRON: ${ENABLE_CRON:-true}
+      DEFAULT_SAVINGS_TARGET: ${DEFAULT_SAVINGS_TARGET:-20}
+      ALPHA_VANTAGE_KEY: ${ALPHA_VANTAGE_KEY:-}
+    volumes:
+      - financie_data:/data
+
+volumes:
+  financie_data:

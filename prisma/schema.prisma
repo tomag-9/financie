@@ -80,9 +80,13 @@ model Investment {
   isin       String?
   name       String
   platform   String
+  isArchived Boolean  @default(false)
+  assetType  String   @default("ETF")
   units      Decimal  @default(0)
   avgPrice   Decimal?
   entries    InvestmentEntry[]
+
+  @@unique([ticker, platform, isArchived])
 }
 
 model InvestmentEntry {
@@ -90,6 +94,7 @@ model InvestmentEntry {
   investmentId String
   investment   Investment @relation(fields: [investmentId], references: [id])
   month        DateTime
+  entryType    String     @default("RECURRING")
   unitsAdded   Decimal    @default(0)
   amountAdded  Decimal    @default(0)
   priceAtTime  Decimal?

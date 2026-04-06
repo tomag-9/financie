@@ -12,6 +12,7 @@ type PlatformBucket = {
     isin: string | null
     name: string
     platform: string
+    assetType: string
     units: number
     avgPrice: number | null
     positionValue: number | null
@@ -32,6 +33,11 @@ function normalizeTicker(value: unknown): string | null {
   return normalized ? normalized.toUpperCase() : null
 }
 
+function normalizeAssetType(value: unknown): string {
+  const normalized = normalizeText(value)
+  return normalized ? normalized.toUpperCase() : 'ETF'
+}
+
 function normalizeDecimal(value: unknown): Prisma.Decimal | null {
   if (value === null || value === undefined || value === '') return null
 
@@ -49,15 +55,8 @@ function normalizeDecimal(value: unknown): Prisma.Decimal | null {
   return null
 }
 
-function parseArchivedPlatform(platform: string): { platform: string; archived: boolean } {
-  if (platform.startsWith('ARCHIVED:')) {
-    return {
-      platform: platform.slice('ARCHIVED:'.length) || 'Neznáma',
-      archived: true,
-    }
-  }
-
-  return { platform, archived: false }
+function isUniqueConstraintError(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
 }
 
 export async function GET() {
@@ -69,6 +68,8 @@ export async function GET() {
       isin: true,
       name: true,
       platform: true,
+      isArchived: true,
+      assetType: true,
       units: true,
       avgPrice: true,
     },
@@ -84,7 +85,6 @@ export async function GET() {
 
   const bucketMap = new Map<string, PlatformBucket>()
   for (const investment of investments) {
-    const { platform, archived } = parseArchivedPlatform(investment.platform)
     const ticker = investment.ticker.trim().toUpperCase()
     const quote = quoteByTicker.get(ticker)
     const units = investment.units.toNumber()
@@ -94,21 +94,22 @@ export async function GET() {
       ticker,
       isin: investment.isin,
       name: investment.name,
-      platform,
+      platform: investment.platform,
+      assetType: investment.assetType,
       units,
       avgPrice: investment.avgPrice ? investment.avgPrice.toNumber() : null,
       positionValue: quote ? units * quote.price : null,
       marketPrice: quote?.price ?? null,
       isStalePrice: quote?.isStale ?? true,
-      archived,
+      archived: investment.isArchived,
     }
 
-    const bucket = bucketMap.get(platform) ?? {
-      platform,
+    const bucket = bucketMap.get(investment.platform) ?? {
+      platform: investment.platform,
       items: [],
     }
     bucket.items.push(item)
-    bucketMap.set(platform, bucket)
+    bucketMap.set(investment.platform, bucket)
   }
 
   const groups = [...bucketMap.values()].map((bucket) => ({
@@ -134,7 +135,7 @@ export async function POST(request: Request) {
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Neplatné JSON telo.' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 })
   }
 
   const payload = (body ?? {}) as Record<string, unknown>
@@ -143,43 +144,60 @@ export async function POST(request: Request) {
   const name = normalizeText(payload.name)
   const platform = normalizeText(payload.platform)
   const isin = normalizeText(payload.isin)
+  const assetType = normalizeAssetType(payload.assetType)
   const units = normalizeDecimal(payload.units)
   const avgPrice = normalizeDecimal(payload.avgPrice)
 
   if (!ticker || !name || !platform || units === null) {
-    return NextResponse.json({ error: 'Ticker, názov, platforma a kusy sú povinné.' }, { status: 400 })
+    return NextResponse.json({ error: 'Ticker, name, platform, and units are required.' }, { status: 400 })
   }
 
-  const investment = await prisma.investment.create({
-    data: {
-      ticker,
-      isin,
-      name,
-      platform,
-      units,
-      avgPrice,
-    },
-    select: {
-      id: true,
-      ticker: true,
-      isin: true,
-      name: true,
-      platform: true,
-      units: true,
-      avgPrice: true,
-    },
-  })
-
-  return NextResponse.json(
-    {
-      investment: {
-        ...investment,
-        units: investment.units.toNumber(),
-        avgPrice: investment.avgPrice ? investment.avgPrice.toNumber() : null,
+  try {
+    const investment = await prisma.investment.create({
+      data: {
+        ticker,
+        isin,
+        name,
+        platform,
+        isArchived: false,
+        assetType,
+        units,
+        avgPrice,
       },
-    },
-    { status: 201 },
-  )
+      select: {
+        id: true,
+        ticker: true,
+        isin: true,
+        name: true,
+        platform: true,
+        isArchived: true,
+        assetType: true,
+        units: true,
+        avgPrice: true,
+      },
+    })
+
+    return NextResponse.json(
+      {
+        investment: {
+          ...investment,
+          units: investment.units.toNumber(),
+          avgPrice: investment.avgPrice ? investment.avgPrice.toNumber() : null,
+          archived: investment.isArchived,
+        },
+      },
+      { status: 201 },
+    )
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return NextResponse.json(
+        { error: 'Táto investícia už existuje pre zvolenú platformu.' },
+        { status: 409 },
+      )
+    }
+
+    return NextResponse.json({ error: 'Failed to create investment.' }, { status: 500 })
+  }
 }
 
 export async function PATCH(request: Request) {
@@ -192,7 +210,7 @@ export async function PATCH(request: Request) {
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Neplatné JSON telo.' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 })
   }
 
   const payload = (body ?? {}) as Record<string, unknown>
@@ -200,7 +218,7 @@ export async function PATCH(request: Request) {
   const id = normalizeText(payload.id)
 
   if (!id) {
-    return NextResponse.json({ error: 'ID investície je povinné.' }, { status: 400 })
+    return NextResponse.json({ error: 'Investment ID is required.' }, { status: 400 })
   }
 
   if (action === 'edit') {
@@ -208,11 +226,12 @@ export async function PATCH(request: Request) {
     const name = normalizeText(payload.name)
     const platform = normalizeText(payload.platform)
     const isin = normalizeText(payload.isin)
+    const assetType = normalizeAssetType(payload.assetType)
     const units = normalizeDecimal(payload.units)
     const avgPrice = normalizeDecimal(payload.avgPrice)
 
     if (!ticker || !name || !platform || units === null) {
-      return NextResponse.json({ error: 'Neplatné údaje pre úpravu investície.' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid investment edit payload.' }, { status: 400 })
     }
 
     try {
@@ -223,6 +242,7 @@ export async function PATCH(request: Request) {
           name,
           platform,
           isin,
+          assetType,
           units,
           avgPrice,
         },
@@ -232,6 +252,8 @@ export async function PATCH(request: Request) {
           isin: true,
           name: true,
           platform: true,
+          isArchived: true,
+          assetType: true,
           units: true,
           avgPrice: true,
         },
@@ -242,70 +264,56 @@ export async function PATCH(request: Request) {
           ...investment,
           units: investment.units.toNumber(),
           avgPrice: investment.avgPrice ? investment.avgPrice.toNumber() : null,
+          archived: investment.isArchived,
         },
       })
-    } catch {
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        return NextResponse.json(
+          { error: 'Táto investícia už existuje pre zvolenú platformu.' },
+          { status: 409 },
+        )
+      }
+
       return NextResponse.json({ error: 'Investícia neexistuje.' }, { status: 404 })
     }
   }
 
-  if (action === 'archive') {
+  if (action === 'archive' || action === 'unarchive') {
     try {
       const existing = await prisma.investment.findUnique({
         where: { id },
-        select: { platform: true },
+        select: { isArchived: true },
       })
 
       if (!existing) {
         return NextResponse.json({ error: 'Investícia neexistuje.' }, { status: 404 })
       }
 
-      const current = parseArchivedPlatform(existing.platform)
-      if (current.archived) {
+      const nextArchived = action === 'archive'
+      if (existing.isArchived === nextArchived) {
         return NextResponse.json({ ok: true })
       }
 
       await prisma.investment.update({
         where: { id },
         data: {
-          platform: `ARCHIVED:${existing.platform}`,
+          isArchived: nextArchived,
         },
       })
 
       return NextResponse.json({ ok: true })
-    } catch {
-      return NextResponse.json({ error: 'Nepodarilo sa archivovať investíciu.' }, { status: 500 })
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        return NextResponse.json(
+          { error: 'Konflikt: už existuje aktívna investícia s rovnakým tickerom a platformou.' },
+          { status: 409 },
+        )
+      }
+
+      return NextResponse.json({ error: 'Failed to update archive state.' }, { status: 500 })
     }
   }
 
-  if (action === 'unarchive') {
-    try {
-      const existing = await prisma.investment.findUnique({
-        where: { id },
-        select: { platform: true },
-      })
-
-      if (!existing) {
-        return NextResponse.json({ error: 'Investícia neexistuje.' }, { status: 404 })
-      }
-
-      const parsed = parseArchivedPlatform(existing.platform)
-      if (!parsed.archived) {
-        return NextResponse.json({ ok: true })
-      }
-
-      await prisma.investment.update({
-        where: { id },
-        data: {
-          platform: parsed.platform,
-        },
-      })
-
-      return NextResponse.json({ ok: true })
-    } catch {
-      return NextResponse.json({ error: 'Nepodarilo sa odarchivovať investíciu.' }, { status: 500 })
-    }
-  }
-
-  return NextResponse.json({ error: 'Nepodporovaná akcia.' }, { status: 400 })
+  return NextResponse.json({ error: 'Unsupported action.' }, { status: 400 })
 }

@@ -91,7 +91,7 @@ export default function IncomePage() {
       const response = await fetch(`/api/income?month=${targetMonth}&months=12`, { cache: 'no-store' })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error ?? 'Nepodarilo sa načítať income dáta.')
+        throw new Error(data.error ?? 'Failed to load income data.')
       }
 
       const nextSources = (data.sources ?? []) as Source[]
@@ -112,7 +112,7 @@ export default function IncomePage() {
       }
       setDrafts(nextDrafts)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nepodarilo sa načítať income dáta.')
+      setError(err instanceof Error ? err.message : 'Failed to load income data.')
     } finally {
       setLoading(false)
     }
@@ -147,7 +147,7 @@ export default function IncomePage() {
 
   async function addSource() {
     if (!newSourceName.trim()) {
-      setError('Názov zdroja je povinný.')
+      setError('Source name is required.')
       return
     }
 
@@ -161,14 +161,14 @@ export default function IncomePage() {
       })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error ?? 'Nepodarilo sa pridať zdroj príjmu.')
+        throw new Error(data.error ?? 'Failed to add the income source.')
       }
 
       setNewSourceName('')
-      setMessage('Zdroj príjmu bol pridaný.')
+      setMessage('Income source added.')
       await loadIncome(month)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nepodarilo sa pridať zdroj príjmu.')
+      setError(err instanceof Error ? err.message : 'Failed to add the income source.')
     } finally {
       setSavingKey(null)
     }
@@ -189,12 +189,12 @@ export default function IncomePage() {
       })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error ?? 'Nepodarilo sa zmeniť stav zdroja.')
+        throw new Error(data.error ?? 'Failed to change the source state.')
       }
-      setMessage(source.isActive ? 'Zdroj bol deaktivovaný.' : 'Zdroj bol aktivovaný.')
+      setMessage(source.isActive ? 'Source deactivated.' : 'Source activated.')
       await loadIncome(month)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nepodarilo sa zmeniť stav zdroja.')
+      setError(err instanceof Error ? err.message : 'Failed to change the source state.')
     } finally {
       setSavingKey(null)
     }
@@ -220,13 +220,13 @@ export default function IncomePage() {
       })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error ?? 'Nepodarilo sa uložiť príjem.')
+        throw new Error(data.error ?? 'Failed to save the income entry.')
       }
 
-      setMessage('Mesačný príjem bol uložený.')
+      setMessage('Monthly income saved.')
       await loadIncome(month)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nepodarilo sa uložiť príjem.')
+      setError(err instanceof Error ? err.message : 'Failed to save the income entry.')
     } finally {
       setSavingKey(null)
     }
@@ -235,7 +235,7 @@ export default function IncomePage() {
   return (
     <section className="space-y-5">
       <header className="space-y-2">
-        <h2 className="text-2xl font-semibold tracking-tight">Zárobky</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">Income</h2>
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
             {icon('M3 12h18M12 3v18')}
@@ -243,7 +243,7 @@ export default function IncomePage() {
           </span>
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
             {icon('M4 12h16M4 12l4 4m-4-4 4-4')}
-            Spolu {currencyFormatter.format(totalIncome)}
+            Total {currencyFormatter.format(totalIncome)}
           </span>
           <Link
             href="/income/joj"
@@ -258,7 +258,7 @@ export default function IncomePage() {
       <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200" htmlFor="income-month-picker">
-            Mesiac
+            Month
           </label>
           <input
             id="income-month-picker"
@@ -271,12 +271,12 @@ export default function IncomePage() {
       </div>
 
       <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-100">Pridať zdroj príjmu</h3>
+        <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-100">Add income source</h3>
         <div className="grid gap-2 sm:grid-cols-[1fr_120px_auto]">
           <input
             value={newSourceName}
             onChange={(event) => setNewSourceName(event.target.value)}
-            placeholder="Názov (napr. Freelance)"
+            placeholder="Name (e.g. Freelance)"
             className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
           />
           <input
@@ -292,7 +292,7 @@ export default function IncomePage() {
             className="inline-flex items-center justify-center gap-1 rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
           >
             {icon('M12 5v14M5 12h14')}
-            Pridať
+            Add
           </button>
         </div>
       </div>
@@ -312,11 +312,11 @@ export default function IncomePage() {
       <div className="grid gap-3">
         {loading ? (
           <p className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-            Načítavam income dáta...
+            Loading income data...
           </p>
         ) : sources.length === 0 ? (
           <p className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-            Nemáš žiadne zdroje príjmu.
+            No income sources yet.
           </p>
         ) : (
           sources.map((source) => {
@@ -329,7 +329,7 @@ export default function IncomePage() {
                     <p className="font-medium text-zinc-900 dark:text-zinc-100">{source.name}</p>
                     {!source.isActive ? (
                       <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">
-                        neaktívny
+                        inactive
                       </span>
                     ) : null}
                   </div>
@@ -340,7 +340,7 @@ export default function IncomePage() {
                     className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
                   >
                     {source.isActive ? icon('M5 12h14') : icon('M12 5v14M5 12h14')}
-                    {source.isActive ? 'Skryť' : 'Aktivovať'}
+                    {source.isActive ? 'Hide' : 'Activate'}
                   </button>
                 </div>
 
@@ -364,7 +364,7 @@ export default function IncomePage() {
                       const value = event.target.value
                       setDrafts((prev) => ({ ...prev, [source.id]: { ...draft, note: value } }))
                     }}
-                    placeholder="Poznámka"
+                    placeholder="Note"
                     className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                   />
                   <button
@@ -374,7 +374,7 @@ export default function IncomePage() {
                     className="inline-flex items-center justify-center gap-1 rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
                   >
                     {icon('M5 12l4 4L19 6')}
-                    Uložiť
+                    Save
                   </button>
                 </div>
               </article>
@@ -384,7 +384,7 @@ export default function IncomePage() {
       </div>
 
       <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-100">Trend príjmov (12 mesiacov)</h3>
+        <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-100">Income trend (12 months)</h3>
         <div className="h-72 w-full">
           <ResponsiveContainer>
             <BarChart data={chartData}>

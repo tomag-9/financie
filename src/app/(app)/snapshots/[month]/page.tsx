@@ -195,9 +195,9 @@ export default async function MonthSnapshotsPage({ params }: MonthSnapshotsPageP
   return (
     <section className="space-y-6">
       <header className="space-y-2">
-        <h2 className="text-2xl font-semibold tracking-tight">Mesačné snapshoty</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">Monthly snapshots</h2>
         <p className="text-sm text-zinc-600 dark:text-zinc-300">
-          Vyplň zostatky pre všetky aktívne účty. Prázdne pole sa uloží ako null.
+          Enter balances for all active accounts. Empty fields are saved as null.
         </p>
       </header>
 
@@ -205,7 +205,7 @@ export default async function MonthSnapshotsPage({ params }: MonthSnapshotsPageP
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <form action="/snapshots" method="get" className="flex items-end gap-2">
             <label htmlFor="month-picker" className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
-              Mesiac
+              Month
             </label>
             <input
               id="month-picker"
@@ -218,11 +218,11 @@ export default async function MonthSnapshotsPage({ params }: MonthSnapshotsPageP
               type="submit"
               className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              Otvoriť
+              Open
             </button>
           </form>
 
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">Aktívny mesiac: {monthLabel}</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-300">Active month: {monthLabel}</p>
         </div>
       </div>
 
@@ -254,12 +254,12 @@ export default async function MonthSnapshotsPage({ params }: MonthSnapshotsPageP
                         : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
                     }`}
                   >
-                    {hasValue ? 'Vyplnené' : 'Prázdne'}
+                    {hasValue ? 'Filled' : 'Empty'}
                   </span>
                 </div>
 
                 <label htmlFor={`balance-${account.id}`} className="sr-only">
-                  Zostatok pre {account.name}
+                  Balance for {account.name}
                 </label>
                 <input
                   id={`balance-${account.id}`}
@@ -304,9 +304,9 @@ export default async function MonthSnapshotsPage({ params }: MonthSnapshotsPageP
                               }
                               className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                             >
-                              <option value="">Nezadané</option>
-                              <option value="true">Áno</option>
-                              <option value="false">Nie</option>
+                              <option value="">Not set</option>
+                              <option value="true">Yes</option>
+                              <option value="false">No</option>
                             </select>
                           ) : field.fieldType === 'NUMBER' ? (
                             <input
@@ -339,7 +339,7 @@ export default async function MonthSnapshotsPage({ params }: MonthSnapshotsPageP
 
         {activeAccounts.length === 0 ? (
           <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-5 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
-            Neexistujú žiadne aktívne účty. Pridaj účet v sekcii Accounts.
+            There are no active accounts. Add an account in Accounts.
           </div>
         ) : null}
 
@@ -348,13 +348,13 @@ export default async function MonthSnapshotsPage({ params }: MonthSnapshotsPageP
             type="submit"
             className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
-            Uložiť všetky zostatky
+            Save all balances
           </button>
           <Link
             href="/dashboard"
             className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
-            Zrušiť
+            Cancel
           </Link>
         </div>
       </form>

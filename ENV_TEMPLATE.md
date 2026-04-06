@@ -34,6 +34,9 @@ ALPHA_VANTAGE_KEY=volitelne
 # Cron notifikácie — zapni v produkcii
 ENABLE_CRON=true
 
+# Voliteľné: ochrana /api/cron endpointu
+CRON_SECRET=dlhy_tajny_token_pre_cron
+
 # Default savings rate cieľ (%)
 DEFAULT_SAVINGS_TARGET=20
 ```

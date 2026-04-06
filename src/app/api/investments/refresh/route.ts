@@ -21,11 +21,7 @@ export async function POST(request: Request) {
 
   const investments = await prisma.investment.findMany({
     where: {
-      platform: {
-        not: {
-          startsWith: 'ARCHIVED:',
-        },
-      },
+      isArchived: false,
     },
     select: {
       ticker: true,

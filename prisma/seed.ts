@@ -15,43 +15,59 @@ async function main() {
   if (!adminPassword) throw new Error('ADMIN_PASSWORD nie je nastavené v .env')
 
   const passwordHash = await bcrypt.hash(adminPassword, 12)
+  const existingSettings = await prisma.settings.findUnique({
+    where: { id: 'singleton' },
+    select: { data: true },
+  })
+  const existingData =
+    existingSettings?.data && typeof existingSettings.data === 'object' && !Array.isArray(existingSettings.data)
+      ? (existingSettings.data as Record<string, unknown>)
+      : {}
+
+  const nextData = {
+    ...existingData,
+    password_hash: passwordHash,
+    totp_secret: existingData.totp_secret ?? null,
+    totp_enabled: existingData.totp_enabled ?? false,
+    backup_codes: Array.isArray(existingData.backup_codes) ? existingData.backup_codes : [],
+    push_subscription: existingData.push_subscription ?? null,
+    savings_goal_pct:
+      typeof existingData.savings_goal_pct === 'number' ? existingData.savings_goal_pct : 20,
+  }
+
   await prisma.settings.upsert({
     where: { id: 'singleton' },
     update: {
-      data: {
-        passwordHash,
-      },
+      data: nextData,
     },
     create: {
       id: 'singleton',
-      data: {
-        passwordHash,
-        totpSecret: null,
-        totpEnabled: false,
-        backupCodes: [],
-        pushSubscription: null,
-        savingsTarget: 20,
-      },
+      data: nextData,
     },
   })
   console.log('✓ Settings created')
 
   // ─── Účty ────────────────────────────────────────────────────────────────
   const accounts = [
-    { name: 'Tatra',    type: AccountType.BANK,       sortOrder: 0 },
-    { name: 'Revolut',  type: AccountType.BANK,       sortOrder: 1 },
-    { name: 'Cash',     type: AccountType.CASH,       sortOrder: 2 },
-    { name: 'Conseq',   type: AccountType.INVESTMENT, sortOrder: 3 },
-    { name: 'EIC',      type: AccountType.INVESTMENT, sortOrder: 4 },
-    { name: 'XTB',      type: AccountType.INVESTMENT, sortOrder: 5 },
-    { name: '2. pilier',type: AccountType.PENSION,    sortOrder: 6 },
+    { id: 'tatra', name: 'Tatra', type: AccountType.BANK, sortOrder: 0 },
+    { id: 'revolut', name: 'Revolut', type: AccountType.BANK, sortOrder: 1 },
+    { id: 'cash', name: 'Cash', type: AccountType.CASH, sortOrder: 2 },
+    { id: 'conseq', name: 'Conseq', type: AccountType.INVESTMENT, sortOrder: 3 },
+    { id: 'eic', name: 'EIC', type: AccountType.INVESTMENT, sortOrder: 4 },
+    { id: 'xtb', name: 'XTB', type: AccountType.INVESTMENT, sortOrder: 5 },
+    { id: '2pilier', name: '2. pilier', type: AccountType.PENSION, sortOrder: 6 },
   ]
 
   for (const acc of accounts) {
     await prisma.account.upsert({
-      where: { id: acc.name.toLowerCase().replace(/[^a-z0-9]/g, '') },
-      update: {},
-      create: { ...acc, id: acc.name.toLowerCase().replace(/[^a-z0-9]/g, '') },
+      where: { id: acc.id },
+      update: {
+        name: acc.name,
+        type: acc.type,
+        sortOrder: acc.sortOrder,
+        isActive: true,
+      },
+      create: acc,
     })
   }
   console.log('✓ Accounts created')
@@ -66,7 +82,11 @@ async function main() {
   for (const src of sources) {
     await prisma.incomeSource.upsert({
       where: { id: src.id },
-      update: {},
+      update: {
+        name: src.name,
+        color: src.color,
+        isActive: true,
+      },
       create: src,
     })
   }
@@ -112,7 +132,15 @@ async function main() {
 
     await prisma.jojDetail.upsert({
       where: { month: monthDate },
-      update: {},
+      update: {
+        streamCount: streams as number,
+        ratePerStream: rate as number,
+        tvHonorar: tv as number,
+        bonus: bonus as number,
+        expectedTotal: expected,
+        receivedTotal: receivedValue,
+        diff,
+      },
       create: {
         month: monthDate,
         streamCount: streams as number,
@@ -129,7 +157,9 @@ async function main() {
     if (hasReceived) {
       await prisma.incomeEntry.upsert({
         where: { sourceId_month: { sourceId: 'joj', month: monthDate } },
-        update: {},
+        update: {
+          amount: received as number,
+        },
         create: {
           sourceId: 'joj',
           month: monthDate,
@@ -175,7 +205,9 @@ async function main() {
     const monthDate = new Date(Date.UTC(y, m - 1, 1))
     await prisma.incomeEntry.upsert({
       where: { sourceId_month: { sourceId: sourceId as string, month: monthDate } },
-      update: {},
+      update: {
+        amount: amount as number,
+      },
       create: { sourceId: sourceId as string, month: monthDate, amount: amount as number },
     })
   }

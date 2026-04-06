@@ -1,0 +1,19 @@
+{
+  "name": "Financie",
+  "short_name": "Financie",
+  "description": "Osobný finančný prehľad",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "lang": "sk-SK",
+  "icons": [
+    {
+      "src": "/next.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

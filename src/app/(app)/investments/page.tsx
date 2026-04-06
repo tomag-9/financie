@@ -9,6 +9,7 @@ type InvestmentRow = {
   isin: string | null
   name: string
   platform: string
+  assetType: string
   units: number
   avgPrice: number | null
   positionValue: number | null
@@ -27,6 +28,7 @@ type FormState = {
   isin: string
   name: string
   platform: string
+  assetType: string
   units: string
   avgPrice: string
 }
@@ -50,6 +52,7 @@ const EMPTY_FORM: FormState = {
   isin: '',
   name: '',
   platform: 'XTB',
+  assetType: 'ETF',
   units: '',
   avgPrice: '',
 }
@@ -58,6 +61,7 @@ export default function InvestmentsPage() {
   const [groups, setGroups] = useState<Group[]>([])
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [editId, setEditId] = useState<string | null>(null)
+  const [assetTypeFilter, setAssetTypeFilter] = useState('ALL')
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
@@ -71,12 +75,12 @@ export default function InvestmentsPage() {
       const response = await fetch('/api/investments', { cache: 'no-store' })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error ?? 'Nepodarilo sa načítať investície.')
+        throw new Error(data.error ?? 'Failed to load investments.')
       }
 
       setGroups((data.groups ?? []) as Group[])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nepodarilo sa načítať investície.')
+      setError(err instanceof Error ? err.message : 'Failed to load investments.')
     } finally {
       setLoading(false)
     }
@@ -115,6 +119,7 @@ export default function InvestmentsPage() {
       isin: item.isin ?? '',
       name: item.name,
       platform: item.platform,
+      assetType: item.assetType,
       units: String(item.units),
       avgPrice: item.avgPrice != null ? String(item.avgPrice) : '',
     })
@@ -126,6 +131,7 @@ export default function InvestmentsPage() {
       isin: form.isin,
       name: form.name,
       platform: form.platform,
+      assetType: form.assetType,
       units: form.units,
       avgPrice: form.avgPrice,
     }
@@ -143,15 +149,15 @@ export default function InvestmentsPage() {
 
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error ?? 'Nepodarilo sa uložiť investíciu.')
+        throw new Error(data.error ?? 'Failed to save the investment.')
       }
 
-      setMessage(editId ? 'Investícia bola upravená.' : 'Investícia bola pridaná.')
+      setMessage(editId ? 'Investment updated.' : 'Investment added.')
       setEditId(null)
       setForm(EMPTY_FORM)
       await loadInvestments()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nepodarilo sa uložiť investíciu.')
+      setError(err instanceof Error ? err.message : 'Failed to save the investment.')
     } finally {
       setSavingKey(null)
     }
@@ -173,13 +179,13 @@ export default function InvestmentsPage() {
       })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error ?? 'Nepodarilo sa zmeniť stav investície.')
+        throw new Error(data.error ?? 'Failed to change the investment state.')
       }
 
-      setMessage(item.archived ? 'Investícia je opäť aktívna.' : 'Investícia bola archivovaná.')
+      setMessage(item.archived ? 'Investment reactivated.' : 'Investment archived.')
       await loadInvestments()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nepodarilo sa zmeniť stav investície.')
+      setError(err instanceof Error ? err.message : 'Failed to change the investment state.')
     } finally {
       setSavingKey(null)
     }
@@ -197,13 +203,13 @@ export default function InvestmentsPage() {
       })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error ?? 'Nepodarilo sa obnoviť market ceny.')
+        throw new Error(data.error ?? 'Failed to refresh market prices.')
       }
 
-      setMessage(force ? 'Market ceny boli manuálne obnovené.' : 'Market cache bola skontrolovaná.')
+      setMessage(force ? 'Market prices refreshed manually.' : 'Market cache checked.')
       await loadInvestments()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nepodarilo sa obnoviť market ceny.')
+      setError(err instanceof Error ? err.message : 'Failed to refresh market prices.')
     } finally {
       setSavingKey(null)
     }
@@ -212,25 +218,28 @@ export default function InvestmentsPage() {
   return (
     <section className="space-y-5">
       <header className="space-y-2">
-        <h2 className="text-2xl font-semibold tracking-tight">Investície</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">Investments</h2>
+        <p className="max-w-2xl text-sm text-zinc-600 dark:text-zinc-300">
+          Separate ETF tracking from other assets, and label positions as recurring or one-off when you enter monthly contributions.
+        </p>
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
             {icon('M3 17l6-6 4 4 8-8')}
-            Hodnota {currencyFormatter.format(totalPortfolioValue)}
+            Value {currencyFormatter.format(totalPortfolioValue)}
           </span>
           <Link
             href="/investments/stats"
             className="inline-flex items-center gap-1 rounded-full border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
           >
             {icon('M4 12h16M4 12l4 4m-4-4 4-4')}
-            Štatistiky
+            Stats
           </Link>
           <Link
             href={monthEntriesHref}
             className="inline-flex items-center gap-1 rounded-full border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
           >
             {icon('M8 2v4M16 2v4M3 10h18')}
-            Mesačné záznamy
+            Monthly entries
           </Link>
           <button
             type="button"
@@ -239,14 +248,14 @@ export default function InvestmentsPage() {
             className="inline-flex items-center gap-1 rounded-full border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
           >
             {icon('M4 4v6h6M20 20v-6h-6M5 19A9 9 0 1 1 19 5')}
-            Obnoviť ceny
+            Refresh prices
           </button>
         </div>
       </header>
 
       <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-100">
-          {editId ? 'Upraviť pozíciu' : 'Pridať pozíciu'}
+          {editId ? 'Edit position' : 'Add position'}
         </h3>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <input
@@ -258,13 +267,13 @@ export default function InvestmentsPage() {
           <input
             value={form.isin}
             onChange={(event) => setForm((prev) => ({ ...prev, isin: event.target.value }))}
-            placeholder="ISIN (voliteľné)"
+            placeholder="ISIN (optional)"
             className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
           />
           <input
             value={form.name}
             onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-            placeholder="Názov"
+            placeholder="Name"
             className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
           />
           <select
@@ -276,6 +285,16 @@ export default function InvestmentsPage() {
             <option value="Conseq">Conseq</option>
             <option value="EIC">EIC</option>
           </select>
+          <select
+            value={form.assetType}
+            onChange={(event) => setForm((prev) => ({ ...prev, assetType: event.target.value }))}
+            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+          >
+            <option value="ETF">ETF</option>
+            <option value="FUND">Fund</option>
+            <option value="ACCOUNT">Account</option>
+            <option value="CASH">Cash</option>
+          </select>
           <input
             type="number"
             inputMode="decimal"
@@ -283,7 +302,7 @@ export default function InvestmentsPage() {
             step="0.0001"
             value={form.units}
             onChange={(event) => setForm((prev) => ({ ...prev, units: event.target.value }))}
-            placeholder="Počet kusov"
+            placeholder="Units"
             className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
           />
           <input
@@ -293,7 +312,7 @@ export default function InvestmentsPage() {
             step="0.01"
             value={form.avgPrice}
             onChange={(event) => setForm((prev) => ({ ...prev, avgPrice: event.target.value }))}
-            placeholder="Priemerná cena"
+            placeholder="Average price"
             className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
           />
         </div>
@@ -314,7 +333,7 @@ export default function InvestmentsPage() {
             className="inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
           >
             {icon('M5 12l4 4L19 6')}
-            {editId ? 'Uložiť zmeny' : 'Pridať pozíciu'}
+            {editId ? 'Save changes' : 'Add position'}
           </button>
         </div>
       </div>
@@ -333,36 +352,59 @@ export default function InvestmentsPage() {
 
       {loading ? (
         <p className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-          Načítavam investície...
+          Loading investments...
         </p>
       ) : groups.length === 0 ? (
         <p className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-          Nemáš žiadne investičné pozície.
+          You do not have any investment positions.
         </p>
       ) : (
         <div className="space-y-4">
-          {groups.map((group) => (
+          <div className="flex flex-wrap gap-2">
+            {['ALL', 'ETF', 'FUND', 'ACCOUNT', 'CASH'].map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setAssetTypeFilter(type)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition ${assetTypeFilter === type ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'border border-zinc-300 text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800'}`}
+              >
+                {type === 'ALL' ? 'All' : type}
+              </button>
+            ))}
+          </div>
+          {groups.map((group) => {
+            const filteredItems =
+              assetTypeFilter === 'ALL'
+                ? group.items
+                : group.items.filter((item) => item.assetType === assetTypeFilter)
+
+            if (filteredItems.length === 0) return null
+
+            return (
             <article key={group.platform} className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
               <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">
                 {group.platform}
               </h3>
 
               <div className="space-y-2">
-                {group.items.map((item) => (
+                {filteredItems.map((item) => (
                   <div key={item.id} className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
                         <p className="font-medium text-zinc-900 dark:text-zinc-100">
                           {item.ticker} · {item.name}
                         </p>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                          Kusy {item.units.toFixed(4)} · Avg {item.avgPrice != null ? currencyFormatter.format(item.avgPrice) : 'N/A'}
+                        <p className="mt-1 flex flex-wrap gap-1 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                          <span className="rounded-full bg-zinc-100 px-2 py-0.5 dark:bg-zinc-800">{item.assetType}</span>
                         </p>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                          Cena {item.marketPrice != null ? currencyFormatter.format(item.marketPrice) : 'N/A'}
-                          {item.isStalePrice ? ' · stará cena' : ''}
+                          Units {item.units.toFixed(4)} · Avg {item.avgPrice != null ? currencyFormatter.format(item.avgPrice) : 'N/A'}
+                        </p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                          Price {item.marketPrice != null ? currencyFormatter.format(item.marketPrice) : 'N/A'}
+                          {item.isStalePrice ? ' · stale price' : ''}
                           {' · '}
-                          Hodnota {item.positionValue != null ? currencyFormatter.format(item.positionValue) : 'N/A'}
+                          Value {item.positionValue != null ? currencyFormatter.format(item.positionValue) : 'N/A'}
                         </p>
                       </div>
 
@@ -373,7 +415,7 @@ export default function InvestmentsPage() {
                           className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
                         >
                           {icon('M4 20h4l10-10-4-4L4 16v4Z')}
-                          Upraviť
+                          Edit
                         </button>
                         <button
                           type="button"
@@ -382,7 +424,7 @@ export default function InvestmentsPage() {
                           className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
                         >
                           {item.archived ? icon('M5 12l4 4L19 6') : icon('M5 12h14')}
-                          {item.archived ? 'Obnoviť' : 'Archivovať'}
+                          {item.archived ? 'Restore' : 'Archive'}
                         </button>
                       </div>
                     </div>
@@ -390,7 +432,8 @@ export default function InvestmentsPage() {
                 ))}
               </div>
             </article>
-          ))}
+            )
+          })}
         </div>
       )}
     </section>

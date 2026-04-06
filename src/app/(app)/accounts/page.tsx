@@ -67,12 +67,12 @@ export default function AccountsPage() {
       const data = (await response.json()) as { accounts?: AccountItem[]; error?: string }
 
       if (!response.ok) {
-        throw new Error(data.error ?? 'Nepodarilo sa načítať účty.')
+        throw new Error(data.error ?? 'Failed to load accounts.')
       }
 
       setAccounts(data.accounts ?? [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nepodarilo sa načítať účty.')
+      setError(err instanceof Error ? err.message : 'Failed to load accounts.')
     } finally {
       setLoading(false)
     }
@@ -89,7 +89,7 @@ export default function AccountsPage() {
 
     const payload = normalizeForm(newForm)
     if (!payload.name || !payload.currency) {
-      setError('Vyplň názov a menu účtu.')
+      setError('Enter the account name and currency.')
       return
     }
 
@@ -104,14 +104,14 @@ export default function AccountsPage() {
       const data = (await response.json()) as { error?: string }
 
       if (!response.ok) {
-        throw new Error(data.error ?? 'Účet sa nepodarilo vytvoriť.')
+        throw new Error(data.error ?? 'Failed to create the account.')
       }
 
       setNewForm(DEFAULT_NEW_ACCOUNT)
-      setNotice('Účet bol vytvorený.')
+      setNotice('Account created.')
       await fetchAccounts()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Účet sa nepodarilo vytvoriť.')
+      setError(err instanceof Error ? err.message : 'Failed to create the account.')
     } finally {
       setCreating(false)
     }
@@ -136,7 +136,7 @@ export default function AccountsPage() {
   async function saveEdit(id: string) {
     const payload = normalizeForm(editForm)
     if (!payload.name || !payload.currency) {
-      setError('Vyplň názov a menu účtu.')
+      setError('Enter the account name and currency.')
       return
     }
 
@@ -157,21 +157,21 @@ export default function AccountsPage() {
       const data = (await response.json()) as { error?: string }
 
       if (!response.ok) {
-        throw new Error(data.error ?? 'Účet sa nepodarilo upraviť.')
+        throw new Error(data.error ?? 'Failed to update the account.')
       }
 
       setEditingId(null)
-      setNotice('Účet bol upravený.')
+      setNotice('Account updated.')
       await fetchAccounts()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Účet sa nepodarilo upraviť.')
+      setError(err instanceof Error ? err.message : 'Failed to update the account.')
     } finally {
       setBusyId(null)
     }
   }
 
   async function deactivateAccount(id: string) {
-    const confirmed = window.confirm('Naozaj chceš účet deaktivovať?')
+    const confirmed = window.confirm('Do you really want to deactivate this account?')
     if (!confirmed) return
 
     setBusyId(id)
@@ -187,16 +187,16 @@ export default function AccountsPage() {
       const data = (await response.json()) as { error?: string }
 
       if (!response.ok) {
-        throw new Error(data.error ?? 'Účet sa nepodarilo deaktivovať.')
+        throw new Error(data.error ?? 'Failed to deactivate the account.')
       }
 
       if (editingId === id) {
         cancelEdit()
       }
-      setNotice('Účet bol deaktivovaný.')
+      setNotice('Account deactivated.')
       await fetchAccounts()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Účet sa nepodarilo deaktivovať.')
+      setError(err instanceof Error ? err.message : 'Failed to deactivate the account.')
     } finally {
       setBusyId(null)
     }
@@ -216,12 +216,12 @@ export default function AccountsPage() {
       const data = (await response.json()) as { error?: string }
 
       if (!response.ok) {
-        throw new Error(data.error ?? 'Poradie sa nepodarilo zmeniť.')
+        throw new Error(data.error ?? 'Failed to change the order.')
       }
 
       await fetchAccounts()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Poradie sa nepodarilo zmeniť.')
+      setError(err instanceof Error ? err.message : 'Failed to change the order.')
     } finally {
       setBusyId(null)
     }
@@ -230,9 +230,9 @@ export default function AccountsPage() {
   return (
     <section className="space-y-6">
       <div className="space-y-1">
-        <h2 className="text-2xl font-semibold tracking-tight">Účty</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">Accounts</h2>
         <p className="text-sm text-zinc-600 dark:text-zinc-300">
-          Správa účtov s jednoduchým CRUD, deaktiváciou a poradím zobrazenia.
+          Manage accounts with simple CRUD, deactivation, and display order.
         </p>
       </div>
 
@@ -240,14 +240,14 @@ export default function AccountsPage() {
         onSubmit={createAccount}
         className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
       >
-        <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">
-          Pridať účet
+          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">
+          Add account
         </h3>
         <div className="grid gap-3 sm:grid-cols-3">
           <input
             value={newForm.name}
             onChange={(event) => setNewForm((prev) => ({ ...prev, name: event.target.value }))}
-            placeholder="Názov účtu"
+            placeholder="Account name"
             className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none ring-zinc-400 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-950"
           />
 
@@ -271,7 +271,7 @@ export default function AccountsPage() {
               setNewForm((prev) => ({ ...prev, currency: event.target.value.toUpperCase() }))
             }
             maxLength={10}
-            placeholder="Mena (EUR)"
+            placeholder="Currency (EUR)"
             className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm uppercase outline-none ring-zinc-400 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-950"
           />
         </div>
@@ -282,7 +282,7 @@ export default function AccountsPage() {
             disabled={creating || !canCreate}
             className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
           >
-            {creating ? 'Ukladám...' : 'Pridať účet'}
+            {creating ? 'Saving...' : 'Add account'}
           </button>
         </div>
       </form>
@@ -316,13 +316,13 @@ export default function AccountsPage() {
             {loading ? (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-zinc-500 dark:text-zinc-400">
-                  Načítavam účty...
+                  Loading accounts...
                 </td>
               </tr>
             ) : sortedAccounts.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-zinc-500 dark:text-zinc-400">
-                  Zatiaľ nemáš vytvorený žiadny účet.
+                  You do not have any accounts yet.
                 </td>
               </tr>
             ) : (
@@ -399,7 +399,7 @@ export default function AccountsPage() {
                             : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
                         }`}
                       >
-                        {account.isActive ? 'Aktívny' : 'Neaktívny'}
+                        {account.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
 
@@ -411,7 +411,7 @@ export default function AccountsPage() {
                           disabled={isBusy || index === 0}
                           className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                         >
-                          Hore
+                          Up
                         </button>
 
                         <button
@@ -420,7 +420,7 @@ export default function AccountsPage() {
                           disabled={isBusy || index === sortedAccounts.length - 1}
                           className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                         >
-                          Dole
+                          Down
                         </button>
 
                         {isEditing ? (
@@ -431,7 +431,7 @@ export default function AccountsPage() {
                               disabled={isBusy}
                               className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
                             >
-                              Uložiť
+                              Save
                             </button>
                             <button
                               type="button"
@@ -439,7 +439,7 @@ export default function AccountsPage() {
                               disabled={isBusy}
                               className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                             >
-                              Zrušiť
+                              Cancel
                             </button>
                           </>
                         ) : (
@@ -449,7 +449,7 @@ export default function AccountsPage() {
                             disabled={isBusy}
                             className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                           >
-                            Upraviť
+                            Edit
                           </button>
                         )}
 
@@ -459,7 +459,7 @@ export default function AccountsPage() {
                           disabled={isBusy || !account.isActive}
                           className="rounded-md border border-red-300 px-2 py-1 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/40"
                         >
-                          Deaktivovať
+                          Deactivate
                         </button>
                       </div>
                     </td>

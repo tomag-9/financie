@@ -173,8 +173,9 @@ export default function JojPage() {
       </header>
 
       <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <label htmlFor="joj-month" className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-200">
-          Mesiac
+        <p className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-100">Month</p>
+        <label htmlFor="joj-month" className="mb-2 block text-xs text-zinc-500 dark:text-zinc-400">
+          Pick the month you want to review.
         </label>
         <input
           id="joj-month"
@@ -187,21 +188,37 @@ export default function JojPage() {
 
       <div className="grid gap-3 md:grid-cols-2">
         <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-100">Vstupné údaje</p>
+          <p className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-100">Input data</p>
+          <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+            Streams, TV fee, and bonus are used to calculate the expected payout.
+          </p>
           <div className="grid gap-2 sm:grid-cols-2">
-            <input type="number" value={streamCount} min="0" onChange={(e) => setStreamCount(e.target.value)} placeholder="🎥 Streamy" className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950" />
-            <input type="number" value={ratePerStream} min="0" step="0.01" onChange={(e) => setRatePerStream(e.target.value)} placeholder="💶 €/stream" className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950" />
-            <input type="number" value={tvHonorar} min="0" step="0.01" onChange={(e) => setTvHonorar(e.target.value)} placeholder="📺 TV honorár" className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950" />
-            <input type="number" value={bonus} min="0" step="0.01" onChange={(e) => setBonus(e.target.value)} placeholder="🎁 Bonus" className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950" />
+            <label className="space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="block font-medium text-zinc-700 dark:text-zinc-200">Stream count</span>
+              <input type="number" value={streamCount} min="0" onChange={(e) => setStreamCount(e.target.value)} placeholder="0" className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950" />
+            </label>
+            <label className="space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="block font-medium text-zinc-700 dark:text-zinc-200">Rate per stream</span>
+              <input type="number" value={ratePerStream} min="0" step="0.01" onChange={(e) => setRatePerStream(e.target.value)} placeholder="40" className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950" />
+            </label>
+            <label className="space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="block font-medium text-zinc-700 dark:text-zinc-200">TV fee</span>
+              <input type="number" value={tvHonorar} min="0" step="0.01" onChange={(e) => setTvHonorar(e.target.value)} placeholder="0" className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950" />
+            </label>
+            <label className="space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="block font-medium text-zinc-700 dark:text-zinc-200">Bonus</span>
+              <input type="number" value={bonus} min="0" step="0.01" onChange={(e) => setBonus(e.target.value)} placeholder="0" className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950" />
+            </label>
           </div>
         </div>
 
         <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-100">Výpočet</p>
+          <p className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-100">Calculation</p>
+          <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">Use the received amount to compare expected vs actual payout.</p>
           <div className="space-y-2 text-sm">
-            <p className="flex items-center justify-between"><span className="text-zinc-500">💡 Malo by prísť</span><span className="font-semibold">{currencyFormatter.format(expectedTotal)}</span></p>
+            <p className="flex items-center justify-between"><span className="text-zinc-500">💡 Expected</span><span className="font-semibold">{currencyFormatter.format(expectedTotal)}</span></p>
             <div>
-              <label htmlFor="received" className="mb-1 block text-zinc-500">🏦 Reálne prijaté</label>
+              <label htmlFor="received" className="mb-1 block text-zinc-500">🏦 Received</label>
               <input id="received" type="number" step="0.01" value={receivedTotal} onChange={(e) => setReceivedTotal(e.target.value)} className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950" />
             </div>
             <p className={`flex items-center justify-between rounded-lg px-2 py-1 font-medium ${isDiffAlert ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'}`}>
@@ -216,7 +233,7 @@ export default function JojPage() {
             className="mt-3 inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
           >
             {icon('M5 12l4 4L19 6')}
-            Uložiť
+            Save
           </button>
         </div>
       </div>
@@ -230,20 +247,20 @@ export default function JojPage() {
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <article className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-xs uppercase text-zinc-500">🎥 Priemer streamov</p>
+          <p className="text-xs uppercase text-zinc-500">🎥 Average streams</p>
           <p className="mt-1 text-xl font-semibold">{stats ? stats.avgStreams.toFixed(1) : '-'}</p>
         </article>
         <article className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-xs uppercase text-zinc-500">🏆 Najlepší mesiac</p>
+          <p className="text-xs uppercase text-zinc-500">🏆 Best month</p>
           <p className="mt-1 text-sm font-semibold">{stats?.bestMonth?.month ?? '-'}</p>
           <p className="text-xs text-zinc-500">{stats?.bestMonth ? currencyFormatter.format(stats.bestMonth.expectedTotal) : ''}</p>
         </article>
         <article className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-xs uppercase text-zinc-500">📈 Očakávané spolu</p>
+          <p className="text-xs uppercase text-zinc-500">📈 Expected total</p>
           <p className="mt-1 text-xl font-semibold">{stats ? currencyFormatter.format(stats.totals.expectedTotal) : '-'}</p>
         </article>
         <article className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-xs uppercase text-zinc-500">🏦 Prijaté spolu</p>
+          <p className="text-xs uppercase text-zinc-500">🏦 Received total</p>
           <p className="mt-1 text-xl font-semibold">{stats ? currencyFormatter.format(stats.totals.receivedTotal) : '-'}</p>
         </article>
       </div>
@@ -263,7 +280,7 @@ export default function JojPage() {
         </div>
       </div>
 
-      {loading ? <p className="text-xs text-zinc-500">Načítavam…</p> : null}
+      {loading ? <p className="text-xs text-zinc-500">Loading…</p> : null}
     </section>
   )
 }

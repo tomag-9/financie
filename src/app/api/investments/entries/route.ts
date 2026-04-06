@@ -55,6 +55,11 @@ function toDecimalOrNull(value: unknown): Prisma.Decimal | null {
   return null
 }
 
+function normalizeEntryType(value: unknown): string {
+  const normalized = typeof value === 'string' ? value.trim().toUpperCase() : ''
+  return normalized === 'ONE_OFF' ? 'ONE_OFF' : 'RECURRING'
+}
+
 async function recomputeInvestment(id: string, tx: Prisma.TransactionClient): Promise<void> {
   const entries = await tx.investmentEntry.findMany({
     where: { investmentId: id },
@@ -85,17 +90,13 @@ export async function GET(request: Request) {
   const url = new URL(request.url)
   const month = parseMonthKey(url.searchParams.get('month'))
   if (!month) {
-    return NextResponse.json({ error: 'Neplatný mesiac.' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid month.' }, { status: 400 })
   }
 
   const [investments, entries] = await Promise.all([
     prisma.investment.findMany({
       where: {
-        platform: {
-          not: {
-            startsWith: 'ARCHIVED:',
-          },
-        },
+        isArchived: false,
       },
       orderBy: [{ platform: 'asc' }, { name: 'asc' }],
       select: {
@@ -103,6 +104,7 @@ export async function GET(request: Request) {
         ticker: true,
         name: true,
         platform: true,
+        assetType: true,
         units: true,
         avgPrice: true,
       },
@@ -114,6 +116,7 @@ export async function GET(request: Request) {
       select: {
         id: true,
         investmentId: true,
+        entryType: true,
         unitsAdded: true,
         amountAdded: true,
         priceAtTime: true,
@@ -130,11 +133,13 @@ export async function GET(request: Request) {
       ticker: investment.ticker,
       name: investment.name,
       platform: investment.platform,
+      assetType: investment.assetType,
       currentUnits: investment.units.toNumber(),
       avgPrice: investment.avgPrice ? investment.avgPrice.toNumber() : null,
       entry: entry
         ? {
             id: entry.id,
+        entryType: entry.entryType,
             unitsAdded: entry.unitsAdded.toNumber(),
             amountAdded: entry.amountAdded.toNumber(),
             priceAtTime: entry.priceAtTime ? entry.priceAtTime.toNumber() : null,
@@ -162,18 +167,18 @@ export async function POST(request: Request) {
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Neplatné JSON telo.' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 })
   }
 
   const payload = (body ?? {}) as Record<string, unknown>
   const month = parseMonthKey(typeof payload.month === 'string' ? payload.month : null)
   if (!month) {
-    return NextResponse.json({ error: 'Neplatný mesiac.' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid month.' }, { status: 400 })
   }
 
   const rowsRaw = Array.isArray(payload.rows) ? payload.rows : null
   if (!rowsRaw) {
-    return NextResponse.json({ error: 'Pole rows je povinné.' }, { status: 400 })
+    return NextResponse.json({ error: 'The rows field is required.' }, { status: 400 })
   }
 
   const normalizedRows = rowsRaw
@@ -183,6 +188,7 @@ export async function POST(request: Request) {
       const investmentId = typeof row.investmentId === 'string' ? row.investmentId.trim() : ''
       return {
         investmentId,
+        entryType: normalizeEntryType(row.entryType),
         unitsAdded: toDecimalOrZero(row.unitsAdded),
         amountAdded: toDecimalOrZero(row.amountAdded),
         priceAtTime: toDecimalOrNull(row.priceAtTime),
@@ -191,50 +197,57 @@ export async function POST(request: Request) {
     .filter((row) => row.investmentId)
 
   if (normalizedRows.length === 0) {
-    return NextResponse.json({ error: 'Neboli poslané žiadne riadky na uloženie.' }, { status: 400 })
+    return NextResponse.json({ error: 'No rows were sent to save.' }, { status: 400 })
   }
 
-  const updated = await prisma.$transaction(async (tx) => {
-    const touchedInvestmentIds = new Set<string>()
+  let updated: number
+  try {
+    updated = await prisma.$transaction(async (tx) => {
+      const touchedInvestmentIds = new Set<string>()
 
-    for (const row of normalizedRows) {
-      await tx.investmentEntry.upsert({
-        where: {
-          investmentId_month: {
+      for (const row of normalizedRows) {
+        await tx.investmentEntry.upsert({
+          where: {
+            investmentId_month: {
+              investmentId: row.investmentId,
+              month: month.date,
+            },
+          },
+          create: {
             investmentId: row.investmentId,
             month: month.date,
+            entryType: row.entryType,
+            unitsAdded: row.unitsAdded,
+            amountAdded: row.amountAdded,
+            priceAtTime: row.priceAtTime,
           },
-        },
-        create: {
-          investmentId: row.investmentId,
-          month: month.date,
-          unitsAdded: row.unitsAdded,
-          amountAdded: row.amountAdded,
-          priceAtTime: row.priceAtTime,
-        },
-        update: {
-          unitsAdded: row.unitsAdded,
-          amountAdded: row.amountAdded,
-          priceAtTime: row.priceAtTime,
+          update: {
+            entryType: row.entryType,
+            unitsAdded: row.unitsAdded,
+            amountAdded: row.amountAdded,
+            priceAtTime: row.priceAtTime,
+          },
+        })
+
+        touchedInvestmentIds.add(row.investmentId)
+      }
+
+      for (const investmentId of touchedInvestmentIds) {
+        await recomputeInvestment(investmentId, tx)
+      }
+
+      const monthEntries = await tx.investmentEntry.findMany({
+        where: { month: month.date },
+        select: {
+          amountAdded: true,
         },
       })
 
-      touchedInvestmentIds.add(row.investmentId)
-    }
-
-    for (const investmentId of touchedInvestmentIds) {
-      await recomputeInvestment(investmentId, tx)
-    }
-
-    const monthEntries = await tx.investmentEntry.findMany({
-      where: { month: month.date },
-      select: {
-        amountAdded: true,
-      },
+      return monthEntries.reduce((acc, row) => acc + row.amountAdded.toNumber(), 0)
     })
-
-    return monthEntries.reduce((acc, row) => acc + row.amountAdded.toNumber(), 0)
-  })
+  } catch {
+    return NextResponse.json({ error: 'Failed to save entries.' }, { status: 500 })
+  }
 
   return NextResponse.json({
     month: month.key,

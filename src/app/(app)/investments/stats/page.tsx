@@ -29,11 +29,7 @@ export default async function InvestmentsStatsPage() {
   const [investments, entries] = await Promise.all([
     prisma.investment.findMany({
       where: {
-        platform: {
-          not: {
-            startsWith: 'ARCHIVED:',
-          },
-        },
+        isArchived: false,
       },
       orderBy: [{ platform: 'asc' }, { ticker: 'asc' }],
       select: {
@@ -65,9 +61,9 @@ export default async function InvestmentsStatsPage() {
   if (investments.length === 0) {
     return (
       <section className="space-y-4">
-        <h2 className="text-2xl font-semibold tracking-tight">Štatistiky portfólia</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">Portfolio stats</h2>
         <p className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-          Nemáš žiadne investičné pozície. Najprv pridaj pozície v sekcii Investície.
+          You do not have any investment positions. Add positions in Investments first.
         </p>
       </section>
     )
@@ -166,25 +162,25 @@ export default async function InvestmentsStatsPage() {
   return (
     <section className="space-y-6">
       <header className="space-y-1">
-        <h2 className="text-2xl font-semibold tracking-tight">Štatistiky portfólia</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">Portfolio stats</h2>
         <p className="text-sm text-zinc-600 dark:text-zinc-300">
-          {latestMonth ? `Posledný mesiac: ${monthFormatter.format(latestMonth)}` : 'Nemáš mesačné investičné záznamy.'}
+          {latestMonth ? `Latest month: ${monthFormatter.format(latestMonth)}` : 'No monthly investment records yet.'}
         </p>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Hodnota portfólia</p>
+          <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Portfolio value</p>
           <p className="mt-2 text-2xl font-semibold">{currencyFormatter.format(totalPortfolioValue)}</p>
         </article>
 
         <article className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Investované celkom</p>
+          <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Total invested</p>
           <p className="mt-2 text-2xl font-semibold">{currencyFormatter.format(totalCostBasis)}</p>
         </article>
 
         <article className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Nerealizovaný zisk/strata</p>
+          <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Unrealized gain/loss</p>
           <p className={`mt-2 text-2xl font-semibold ${unrealized.gain > 0 ? 'text-emerald-600 dark:text-emerald-400' : unrealized.gain < 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
             {currencyFormatter.format(unrealized.gain)}
           </p>
@@ -199,11 +195,11 @@ export default async function InvestmentsStatsPage() {
       </div>
 
       <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-200">Hodnota portfólia v čase</h3>
+        <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-200">Portfolio value over time</h3>
         {chartData.length > 0 ? (
           <PortfolioValueChart data={chartData} hasBenchmark={hasBenchmarkSeries} />
         ) : (
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">Na graf potrebuješ aspoň jeden mesačný investičný záznam.</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-300">You need at least one monthly investment record for the chart.</p>
         )}
       </div>
 
@@ -213,18 +209,18 @@ export default async function InvestmentsStatsPage() {
           <p className="text-sm text-zinc-700 dark:text-zinc-200">
             {benchmarkTicker}: {currencyFormatter.format(benchmarkQuote.price)}
             {' · '}
-            Od prvého nákupu: {formatPercent(benchmarkReturn)}
-            {benchmarkQuote.isStale ? ' · stará cena' : ''}
+            Since first buy: {formatPercent(benchmarkReturn)}
+            {benchmarkQuote.isStale ? ' · stale price' : ''}
           </p>
         ) : (
           <p className="text-sm text-zinc-600 dark:text-zinc-300">
-            Benchmark porovnanie sa zobrazí, keď portfólio obsahuje ticker VWCE alebo SPY.
+            Benchmark comparison will appear when the portfolio includes VWCE or SPY.
           </p>
         )}
       </div>
 
       <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-200">Pozície</h3>
+        <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-200">Positions</h3>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -233,7 +229,7 @@ export default async function InvestmentsStatsPage() {
                 <th className="py-2 pr-3 font-medium">Platforma</th>
                 <th className="py-2 pr-3 font-medium">Kusy</th>
                 <th className="py-2 pr-3 font-medium">Avg cena</th>
-                <th className="py-2 pr-3 font-medium">Aktuálna cena</th>
+                <th className="py-2 pr-3 font-medium">Current price</th>
                 <th className="py-2 font-medium">Hodnota</th>
               </tr>
             </thead>
@@ -246,7 +242,7 @@ export default async function InvestmentsStatsPage() {
                   <td className="py-2 pr-3">{position.avgPrice !== null ? currencyFormatter.format(position.avgPrice) : 'N/A'}</td>
                   <td className="py-2 pr-3">
                     {position.marketPrice !== null ? currencyFormatter.format(position.marketPrice) : 'N/A'}
-                    {position.stalePrice ? ' · stará cena' : ''}
+                    {position.stalePrice ? ' · stale price' : ''}
                   </td>
                   <td className="py-2">
                     {position.marketPrice !== null
