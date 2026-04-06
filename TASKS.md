@@ -142,13 +142,13 @@
 **Súbory**: `public/manifest.json`, `public/sw.js`, `next.config.ts`
 **Úloha**: manifest.json (name, icons, theme_color, display: standalone). Service worker registrácia. `next-pwa` alebo manuálny SW. Offline fallback stránka.
 **Vstup pre Clauda**: "Implementuj F6-1 — PWA manifest a service worker"
-- [ ] hotovo
+- [x] hotovo
 
 ### F6-2: Push notifikácie
 **Súbory**: `src/lib/push.ts`, `src/app/api/push/route.ts`, `src/app/(app)/settings/notifications/page.tsx`
 **Úloha**: V nastaveniach: tlačidlo "Povoliť notifikácie" → requestPermission → uloží subscription do Settings. `web-push` server-side. Cron `0 9 2 * *` → odošle push s textom "Čas zadať financie za [mesiac]". Klik → `/snapshots?month=YYYY-MM`.
 **Vstup pre Clauda**: "Implementuj F6-2 — push notifikácie"
-- [ ] hotovo
+- [x] hotovo
 
 ---
 
