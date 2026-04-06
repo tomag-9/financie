@@ -40,3 +40,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/data
+/prisma/seed-data/*
+!/prisma/seed-data/.gitkeep
+!/prisma/seed-data/*.enc

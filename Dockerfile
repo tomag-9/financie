@@ -1,17 +1,20 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
+COPY prisma ./prisma
+RUN npx prisma generate
 
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/prisma ./prisma
 COPY . .
 RUN npm run build
 
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -28,4 +31,4 @@ COPY --from=builder /app/next.config.ts ./next.config.ts
 RUN mkdir -p /data
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run start"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run db:seed && npm run start"]

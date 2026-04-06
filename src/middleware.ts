@@ -9,7 +9,9 @@ export default auth((req) => {
 
   const isPublic =
     pathname.startsWith('/login') ||
-    pathname.startsWith('/api/auth')
+    pathname.startsWith('/api/auth') ||
+    pathname === '/manifest.json' ||
+    pathname === '/sw.js'
 
   if (!isLoggedIn && !isPublic) {
     const loginUrl = new URL('/login', req.url)

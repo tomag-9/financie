@@ -1,36 +1,31 @@
 'use client'
 
-import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { MonthPicker } from '@/components/ui/MonthPicker'
+
+type EntryMode = 'RECURRING' | 'ONE_OFF'
+
+type Account = {
+  id: string
+  name: string
+  currency: string
+}
 
 type InvestmentRow = {
   id: string
-  ticker: string
-  isin: string | null
-  name: string
-  platform: string
-  assetType: string
-  units: number
-  avgPrice: number | null
-  positionValue: number | null
-  marketPrice: number | null
-  isStalePrice: boolean
-  archived: boolean
+  accountId: string
+  accountName: string
+  currency: string
+  mode: EntryMode
+  amount: number
 }
 
-type Group = {
-  platform: string
-  items: InvestmentRow[]
-}
-
-type FormState = {
-  ticker: string
-  isin: string
-  name: string
-  platform: string
-  assetType: string
-  units: string
-  avgPrice: string
+type ApiResponse = {
+  month: string
+  accounts: Account[]
+  rows: InvestmentRow[]
+  totalInvested: number
 }
 
 const currencyFormatter = new Intl.NumberFormat('sk-SK', {
@@ -39,46 +34,72 @@ const currencyFormatter = new Intl.NumberFormat('sk-SK', {
   maximumFractionDigits: 2,
 })
 
-function icon(svgPath: string) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4 fill-none stroke-current stroke-2">
-      <path d={svgPath} strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
+function currentMonthKeyUtc(): string {
+  const now = new Date()
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
 }
 
-const EMPTY_FORM: FormState = {
-  ticker: '',
-  isin: '',
-  name: '',
-  platform: 'XTB',
-  assetType: 'ETF',
-  units: '',
-  avgPrice: '',
+function amountToInput(value: number): string {
+  return Number.isFinite(value) && value > 0 ? String(value) : ''
 }
 
 export default function InvestmentsPage() {
-  const [groups, setGroups] = useState<Group[]>([])
-  const [form, setForm] = useState<FormState>(EMPTY_FORM)
-  const [editId, setEditId] = useState<string | null>(null)
-  const [assetTypeFilter, setAssetTypeFilter] = useState('ALL')
-  const [savingKey, setSavingKey] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [message, setMessage] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+  const queryMonth = searchParams.get('month')
+  const initialMonth = queryMonth && /^\d{4}-\d{2}$/.test(queryMonth) ? queryMonth : currentMonthKeyUtc()
 
-  async function loadInvestments() {
+  const [month, setMonth] = useState(initialMonth)
+  const [accounts, setAccounts] = useState<Account[]>([])
+  const [rows, setRows] = useState<InvestmentRow[]>([])
+  const [totalInvested, setTotalInvested] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
+
+  const [showCreate, setShowCreate] = useState(false)
+  const [createAccountId, setCreateAccountId] = useState('')
+  const [createMode, setCreateMode] = useState<EntryMode>('RECURRING')
+  const [createAmount, setCreateAmount] = useState('')
+
+  const [editAmounts, setEditAmounts] = useState<Record<string, string>>({})
+  const [editModes, setEditModes] = useState<Record<string, EntryMode>>({})
+
+  useEffect(() => {
+    if (month !== initialMonth) {
+      window.history.replaceState(null, '', `/investments?month=${month}`)
+    }
+  }, [initialMonth, month])
+
+  async function loadData(targetMonth: string) {
     setLoading(true)
     setError(null)
 
     try {
-      const response = await fetch('/api/investments', { cache: 'no-store' })
-      const data = await response.json()
+      const response = await fetch(`/api/investments?month=${targetMonth}`, { cache: 'no-store' })
+      const data = (await response.json()) as ApiResponse | { error?: string }
+
       if (!response.ok) {
-        throw new Error(data.error ?? 'Failed to load investments.')
+        throw new Error('error' in data ? data.error ?? 'Failed to load investments.' : 'Failed to load investments.')
       }
 
-      setGroups((data.groups ?? []) as Group[])
+      const okData = data as ApiResponse
+      setAccounts(okData.accounts)
+      setRows(okData.rows)
+      setTotalInvested(okData.totalInvested)
+
+      const nextEditAmounts: Record<string, string> = {}
+      const nextEditModes: Record<string, EntryMode> = {}
+      for (const row of okData.rows) {
+        nextEditAmounts[row.id] = amountToInput(row.amount)
+        nextEditModes[row.id] = row.mode
+      }
+      setEditAmounts(nextEditAmounts)
+      setEditModes(nextEditModes)
+
+      if (!createAccountId && okData.accounts.length > 0) {
+        setCreateAccountId(okData.accounts[0].id)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load investments.')
     } finally {
@@ -87,84 +108,44 @@ export default function InvestmentsPage() {
   }
 
   useEffect(() => {
-    void loadInvestments()
-  }, [])
+    void loadData(month)
+  }, [month])
 
-  useEffect(() => {
-    void refreshPrices(false)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const totalPortfolioValue = useMemo(() => {
-    return groups
-      .flatMap((group) => group.items)
-      .reduce((acc, item) => acc + (item.positionValue ?? 0), 0)
-  }, [groups])
-
-  const monthEntriesHref = useMemo(() => {
-    const now = new Date()
-    const month = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
-    return `/investments/${month}`
-  }, [])
-
-  function startCreate() {
-    setEditId(null)
-    setForm(EMPTY_FORM)
-  }
-
-  function startEdit(item: InvestmentRow) {
-    setEditId(item.id)
-    setForm({
-      ticker: item.ticker,
-      isin: item.isin ?? '',
-      name: item.name,
-      platform: item.platform,
-      assetType: item.assetType,
-      units: String(item.units),
-      avgPrice: item.avgPrice != null ? String(item.avgPrice) : '',
-    })
-  }
-
-  async function saveInvestment() {
-    const payload = {
-      ticker: form.ticker,
-      isin: form.isin,
-      name: form.name,
-      platform: form.platform,
-      assetType: form.assetType,
-      units: form.units,
-      avgPrice: form.avgPrice,
-    }
-
-    setSavingKey('save')
+  async function createEntry() {
+    setSaving(true)
     setError(null)
     setMessage(null)
 
     try {
       const response = await fetch('/api/investments', {
-        method: editId ? 'PATCH' : 'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editId ? { action: 'edit', id: editId, ...payload } : payload),
+        body: JSON.stringify({
+          month,
+          accountId: createAccountId,
+          mode: createMode,
+          amount: createAmount,
+        }),
       })
 
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error ?? 'Failed to save the investment.')
+        throw new Error(data.error ?? 'Failed to create investment entry.')
       }
 
-      setMessage(editId ? 'Investment updated.' : 'Investment added.')
-      setEditId(null)
-      setForm(EMPTY_FORM)
-      await loadInvestments()
+      setShowCreate(false)
+      setCreateAmount('')
+      setMessage('Investment entry created.')
+      await loadData(month)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save the investment.')
+      setError(err instanceof Error ? err.message : 'Failed to create investment entry.')
     } finally {
-      setSavingKey(null)
+      setSaving(false)
     }
   }
 
-  async function toggleArchive(item: InvestmentRow) {
-    setSavingKey(item.id)
+  async function updateEntry(row: InvestmentRow) {
+    setSaving(true)
     setError(null)
     setMessage(null)
 
@@ -173,170 +154,110 @@ export default function InvestmentsPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: item.archived ? 'unarchive' : 'archive',
-          id: item.id,
+          month,
+          accountId: row.accountId,
+          mode: editModes[row.id] ?? row.mode,
+          amount: editAmounts[row.id] ?? amountToInput(row.amount),
         }),
       })
+
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error ?? 'Failed to change the investment state.')
+        throw new Error(data.error ?? 'Failed to update investment entry.')
       }
 
-      setMessage(item.archived ? 'Investment reactivated.' : 'Investment archived.')
-      await loadInvestments()
+      const mode = editModes[row.id] ?? row.mode
+      setMessage(`${mode === 'RECURRING' ? 'Monthly' : 'One-time'} investment updated.`)
+      await loadData(month)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to change the investment state.')
+      setError(err instanceof Error ? err.message : 'Failed to update investment entry.')
     } finally {
-      setSavingKey(null)
-    }
-  }
-
-  async function refreshPrices(force: boolean) {
-    setSavingKey('refresh')
-    setError(null)
-
-    try {
-      const response = await fetch('/api/investments/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ force }),
-      })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error ?? 'Failed to refresh market prices.')
-      }
-
-      setMessage(force ? 'Market prices refreshed manually.' : 'Market cache checked.')
-      await loadInvestments()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to refresh market prices.')
-    } finally {
-      setSavingKey(null)
+      setSaving(false)
     }
   }
 
   return (
-    <section className="space-y-5">
-      <header className="space-y-2">
-        <h2 className="text-2xl font-semibold tracking-tight">Investments</h2>
-        <p className="max-w-2xl text-sm text-zinc-600 dark:text-zinc-300">
-          Separate ETF tracking from other assets, and label positions as recurring or one-off when you enter monthly contributions.
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-            {icon('M3 17l6-6 4 4 8-8')}
-            Value {currencyFormatter.format(totalPortfolioValue)}
-          </span>
-          <Link
-            href="/investments/stats"
-            className="inline-flex items-center gap-1 rounded-full border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
-          >
-            {icon('M4 12h16M4 12l4 4m-4-4 4-4')}
-            Stats
-          </Link>
-          <Link
-            href={monthEntriesHref}
-            className="inline-flex items-center gap-1 rounded-full border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
-          >
-            {icon('M8 2v4M16 2v4M3 10h18')}
-            Monthly entries
-          </Link>
-          <button
-            type="button"
-            onClick={() => refreshPrices(true)}
-            disabled={savingKey === 'refresh'}
-            className="inline-flex items-center gap-1 rounded-full border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
-          >
-            {icon('M4 4v6h6M20 20v-6h-6M5 19A9 9 0 1 1 19 5')}
-            Refresh prices
-          </button>
+    <section className="space-y-6">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold tracking-tight">Investments</h2>
+          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+            Actual investments for selected month with quick add and monthly amount updates.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+              Total {currencyFormatter.format(totalInvested)}
+            </span>
+          </div>
         </div>
       </header>
 
-      <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-100">
-          {editId ? 'Edit position' : 'Add position'}
-        </h3>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          <input
-            value={form.ticker}
-            onChange={(event) => setForm((prev) => ({ ...prev, ticker: event.target.value }))}
-            placeholder="Ticker (VWCE)"
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-          />
-          <input
-            value={form.isin}
-            onChange={(event) => setForm((prev) => ({ ...prev, isin: event.target.value }))}
-            placeholder="ISIN (optional)"
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-          />
-          <input
-            value={form.name}
-            onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-            placeholder="Name"
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-          />
-          <select
-            value={form.platform}
-            onChange={(event) => setForm((prev) => ({ ...prev, platform: event.target.value }))}
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-          >
-            <option value="XTB">XTB</option>
-            <option value="Conseq">Conseq</option>
-            <option value="EIC">EIC</option>
-          </select>
-          <select
-            value={form.assetType}
-            onChange={(event) => setForm((prev) => ({ ...prev, assetType: event.target.value }))}
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-          >
-            <option value="ETF">ETF</option>
-            <option value="FUND">Fund</option>
-            <option value="ACCOUNT">Account</option>
-            <option value="CASH">Cash</option>
-          </select>
-          <input
-            type="number"
-            inputMode="decimal"
-            min="0"
-            step="0.0001"
-            value={form.units}
-            onChange={(event) => setForm((prev) => ({ ...prev, units: event.target.value }))}
-            placeholder="Units"
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-          />
-          <input
-            type="number"
-            inputMode="decimal"
-            min="0"
-            step="0.01"
-            value={form.avgPrice}
-            onChange={(event) => setForm((prev) => ({ ...prev, avgPrice: event.target.value }))}
-            placeholder="Average price"
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-          />
+      <div className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <MonthPicker value={month} onChange={setMonth} className="w-full sm:w-[22rem]" />
         </div>
 
-        <div className="mt-3 flex flex-wrap justify-end gap-2">
+        <div className="mt-4 flex justify-end">
           <button
             type="button"
-            onClick={startCreate}
-            className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
+            onClick={() => setShowCreate((prev) => !prev)}
+            className="inline-flex items-center gap-2 rounded-2xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
           >
-            {icon('M5 12h14')}
-            Reset
-          </button>
-          <button
-            type="button"
-            onClick={saveInvestment}
-            disabled={savingKey === 'save'}
-            className="inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-          >
-            {icon('M5 12l4 4L19 6')}
-            {editId ? 'Save changes' : 'Add position'}
+            <span aria-hidden="true" className="text-base leading-none">+</span>
+            Add investment
           </button>
         </div>
       </div>
+
+      {showCreate ? (
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-200">New investment entry</h3>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <select
+              value={createAccountId}
+              onChange={(event) => setCreateAccountId(event.target.value)}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            >
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={createMode}
+              onChange={(event) => setCreateMode(event.target.value as EntryMode)}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            >
+              <option value="RECURRING">Monthly</option>
+              <option value="ONE_OFF">One-time</option>
+            </select>
+
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              value={createAmount}
+              onChange={(event) => setCreateAmount(event.target.value)}
+              placeholder="Amount"
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            />
+          </div>
+
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={createEntry}
+              disabled={saving || !createAccountId}
+              className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+            >
+              {saving ? 'Saving...' : 'Create'}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {message ? (
         <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
@@ -354,86 +275,65 @@ export default function InvestmentsPage() {
         <p className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
           Loading investments...
         </p>
-      ) : groups.length === 0 ? (
+      ) : rows.length === 0 ? (
         <p className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-          You do not have any investment positions.
+          No investment entries yet for this month. Use + Add investment.
         </p>
       ) : (
-        <div className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {['ALL', 'ETF', 'FUND', 'ACCOUNT', 'CASH'].map((type) => (
-              <button
-                key={type}
-                type="button"
-                onClick={() => setAssetTypeFilter(type)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition ${assetTypeFilter === type ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'border border-zinc-300 text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800'}`}
-              >
-                {type === 'ALL' ? 'All' : type}
-              </button>
-            ))}
-          </div>
-          {groups.map((group) => {
-            const filteredItems =
-              assetTypeFilter === 'ALL'
-                ? group.items
-                : group.items.filter((item) => item.assetType === assetTypeFilter)
+        <div className="space-y-3">
+          {rows.map((row) => (
+            <article key={row.id} className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="font-medium text-zinc-900 dark:text-zinc-100">{row.accountName}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">{(editModes[row.id] ?? row.mode) === 'RECURRING' ? 'Monthly investment' : 'One-time investment'}</p>
+                </div>
+                <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                  {row.currency}
+                </span>
+              </div>
 
-            if (filteredItems.length === 0) return null
+              <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                <select
+                  value={editModes[row.id] ?? row.mode}
+                  onChange={(event) =>
+                    setEditModes((prev) => ({
+                      ...prev,
+                      [row.id]: event.target.value as EntryMode,
+                    }))
+                  }
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                >
+                  <option value="RECURRING">Monthly</option>
+                  <option value="ONE_OFF">One-time</option>
+                </select>
 
-            return (
-            <article key={group.platform} className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">
-                {group.platform}
-              </h3>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={editAmounts[row.id] ?? amountToInput(row.amount)}
+                  onChange={(event) =>
+                    setEditAmounts((prev) => ({
+                      ...prev,
+                      [row.id]: event.target.value,
+                    }))
+                  }
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                />
 
-              <div className="space-y-2">
-                {filteredItems.map((item) => (
-                  <div key={item.id} className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                          {item.ticker} · {item.name}
-                        </p>
-                        <p className="mt-1 flex flex-wrap gap-1 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-                          <span className="rounded-full bg-zinc-100 px-2 py-0.5 dark:bg-zinc-800">{item.assetType}</span>
-                        </p>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                          Units {item.units.toFixed(4)} · Avg {item.avgPrice != null ? currencyFormatter.format(item.avgPrice) : 'N/A'}
-                        </p>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                          Price {item.marketPrice != null ? currencyFormatter.format(item.marketPrice) : 'N/A'}
-                          {item.isStalePrice ? ' · stale price' : ''}
-                          {' · '}
-                          Value {item.positionValue != null ? currencyFormatter.format(item.positionValue) : 'N/A'}
-                        </p>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => startEdit(item)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
-                        >
-                          {icon('M4 20h4l10-10-4-4L4 16v4Z')}
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => toggleArchive(item)}
-                          disabled={savingKey === item.id}
-                          className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
-                        >
-                          {item.archived ? icon('M5 12l4 4L19 6') : icon('M5 12h14')}
-                          {item.archived ? 'Restore' : 'Archive'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                <button
+                  type="button"
+                  onClick={() => updateEntry(row)}
+                  disabled={saving}
+                  className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+                >
+                  Update
+                </button>
               </div>
             </article>
-            )
-          })}
+          ))}
         </div>
       )}
     </section>

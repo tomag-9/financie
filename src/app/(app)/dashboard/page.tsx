@@ -1,5 +1,6 @@
 import { NetWorthChart } from '@/components/charts/NetWorthChart'
 import { SavingsRateChart } from '@/components/charts/SavingsRateChart'
+import { DashboardMonthSelect } from '@/components/dashboard/DashboardMonthSelect'
 import {
   calculateMonthlySavingsSeries,
   calculateMonthlyDelta,
@@ -16,7 +17,7 @@ import type { SettingsData } from '@/types'
 const currencyFormatter = new Intl.NumberFormat('sk-SK', {
   style: 'currency',
   currency: 'EUR',
-  maximumFractionDigits: 2,
+  maximumFractionDigits: 0,
 })
 
 const monthFormatter = new Intl.DateTimeFormat('sk-SK', {
@@ -226,44 +227,45 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     .filter((item): item is { name: string; daysUntilDue: number; remaining: number } => Boolean(item))
 
   return (
-    <section className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
+    <section className="space-y-6 overflow-x-hidden">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-2">
           <h2 className="text-2xl font-semibold tracking-tight">Dashboard</h2>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
-            Month: <span className="font-medium text-zinc-900 dark:text-zinc-100">{monthFormatter.format(selectedPoint.monthDate)}</span>
-          </p>
+        </div>
+
+        <div className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+          <DashboardMonthSelect selectedMonthKey={selectedPoint.monthKey} />
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <article className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Net worth</p>
-          <p className="mt-2 text-2xl font-semibold">{currencyFormatter.format(selectedPoint.netWorth)}</p>
+      <div className="grid gap-3 grid-cols-2 xl:grid-cols-5">
+        <article className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
+          <p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Net worth</p>
+          <p className="mt-2 text-lg font-semibold leading-none sm:text-2xl">{currencyFormatter.format(selectedPoint.netWorth)}</p>
         </article>
 
-        <article className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Cash total</p>
-          <p className="mt-2 text-2xl font-semibold">{currencyFormatter.format(selectedPoint.cashTotal)}</p>
+        <article className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
+          <p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Cash total</p>
+          <p className="mt-2 text-lg font-semibold leading-none sm:text-2xl">{currencyFormatter.format(selectedPoint.cashTotal)}</p>
         </article>
 
-        <article className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Monthly change</p>
-          <p className={`mt-2 text-2xl font-semibold ${monthlyDelta > 0 ? 'text-emerald-600 dark:text-emerald-400' : monthlyDelta < 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
+        <article className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
+          <p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Monthly change</p>
+          <p className={`mt-2 text-lg font-semibold leading-none sm:text-2xl ${monthlyDelta > 0 ? 'text-emerald-600 dark:text-emerald-400' : monthlyDelta < 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
             {formatDeltaCurrency(monthlyDelta)}
           </p>
         </article>
 
-        <article className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Monthly change %</p>
-          <p className={`mt-2 text-2xl font-semibold ${monthlyDeltaPct !== null && monthlyDeltaPct > 0 ? 'text-emerald-600 dark:text-emerald-400' : monthlyDeltaPct !== null && monthlyDeltaPct < 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
+        <article className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
+          <p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Monthly change %</p>
+          <p className={`mt-2 text-lg font-semibold leading-none sm:text-2xl ${monthlyDeltaPct !== null && monthlyDeltaPct > 0 ? 'text-emerald-600 dark:text-emerald-400' : monthlyDeltaPct !== null && monthlyDeltaPct < 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
             {formatDeltaPct(monthlyDeltaPct)}
           </p>
         </article>
 
-        <article className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Net worth after liabilities</p>
-          <p className="mt-2 text-2xl font-semibold">{currencyFormatter.format(netWorthAfterLiabilities)}</p>
+        <article className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
+          <p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Net worth after liabilities</p>
+          <p className="mt-2 text-lg font-semibold leading-none sm:text-2xl">{currencyFormatter.format(netWorthAfterLiabilities)}</p>
         </article>
       </div>
 
@@ -323,7 +325,34 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Last 3 snapshot months</h3>
 
-        <div className="mt-3 overflow-x-auto">
+        <div className="mt-3 space-y-2 sm:hidden">
+          {recentRows.map((row) => (
+            <article
+              key={row.monthDate.toISOString()}
+              className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
+            >
+              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                {monthFormatter.format(row.monthDate)}
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                <p className="text-zinc-500 dark:text-zinc-400">Net worth</p>
+                <p className="text-right font-medium text-zinc-800 dark:text-zinc-200">{currencyFormatter.format(row.netWorth)}</p>
+                <p className="text-zinc-500 dark:text-zinc-400">Cash</p>
+                <p className="text-right font-medium text-zinc-800 dark:text-zinc-200">{currencyFormatter.format(row.cashTotal)}</p>
+                <p className="text-zinc-500 dark:text-zinc-400">Delta</p>
+                <p className={`text-right font-medium ${row.delta > 0 ? 'text-emerald-600 dark:text-emerald-400' : row.delta < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-zinc-800 dark:text-zinc-200'}`}>
+                  {formatDeltaCurrency(row.delta)}
+                </p>
+                <p className="text-zinc-500 dark:text-zinc-400">Delta %</p>
+                <p className={`text-right font-medium ${row.deltaPct !== null && row.deltaPct > 0 ? 'text-emerald-600 dark:text-emerald-400' : row.deltaPct !== null && row.deltaPct < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-zinc-800 dark:text-zinc-200'}`}>
+                  {formatDeltaPct(row.deltaPct)}
+                </p>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <div className="mt-3 hidden overflow-x-auto sm:block">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">

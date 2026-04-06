@@ -82,7 +82,6 @@ export function AppNav({ hasJojAlert }: NavProps) {
   const items: NavItem[] = useMemo(
     () => [
       { href: '/dashboard', label: 'Dashboard', icon: 'M3 12h18M12 3v18' },
-      { href: '/accounts', label: 'Accounts', icon: 'M4 7h16M4 12h16M4 17h16' },
       { href: '/snapshots', label: 'Snapshots', icon: 'M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z' },
       { href: '/income', label: 'Income', icon: 'M4 14l4-4 3 3 5-6 4 4', showBadge: hasJojAlert },
       { href: '/investments', label: 'Investments', icon: 'M3 17l6-6 4 4 8-8' },
@@ -126,7 +125,7 @@ export function AppNav({ hasJojAlert }: NavProps) {
       </aside>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white/95 px-2 py-1 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 md:hidden">
-        <ul className="grid grid-cols-7 gap-1">
+        <ul className="grid grid-cols-6 gap-1">
           {items.map((item) => {
             const active = isActivePath(pathname, item.href)
             return (

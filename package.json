@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "seed:encrypt": "tsx scripts/encrypt-seed-file.ts",
+    "seed:decrypt": "tsx scripts/decrypt-seed-file.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

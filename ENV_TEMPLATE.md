@@ -45,6 +45,14 @@ ALPHA_VANTAGE_KEY=volitelne
 # Cron notifikácie — zapni v produkcii
 ENABLE_CRON=true
 
+# ─── Seed data encryption ──────────────────────────────────────────────────
+# Pouzije sa ako fallback pre sifrovanie/dekryptovanie skrytych seed dat
+SEED_DATA_PASSWORD=dlhe_tajne_heslo_pre_seed_data
+
+# Volitelne oddelene hesla pre encode/decode flow
+SEED_DATA_ENCODE_PASSWORD=dlhe_tajne_heslo_pre_seed_data
+SEED_DATA_DECODE_PASSWORD=dlhe_tajne_heslo_pre_seed_data
+
 # Voliteľné: ochrana /api/cron endpointu
 CRON_SECRET=dlhy_tajny_token_pre_cron
 

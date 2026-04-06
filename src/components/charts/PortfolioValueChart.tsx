@@ -39,7 +39,7 @@ export function PortfolioValueChart({ data, hasBenchmark }: PortfolioValueChartP
   }, [data, range])
 
   return (
-    <div className="h-72 w-full">
+    <div className="w-full min-w-0">
       <div className="mb-3 flex flex-wrap gap-2">
         {HISTORY_OPTIONS.map((option) => (
           <button
@@ -52,34 +52,36 @@ export function PortfolioValueChart({ data, hasBenchmark }: PortfolioValueChartP
           </button>
         ))}
       </div>
-      <ResponsiveContainer>
-        <LineChart data={visibleData} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#d4d4d8" />
-          <XAxis dataKey="monthLabel" tick={{ fontSize: 12 }} />
-          <YAxis tick={{ fontSize: 12 }} width={110} tickFormatter={(value) => currencyFormatter.format(Number(value))} />
-          <Tooltip formatter={(value) => currencyFormatter.format(Number(value ?? 0))} />
-          <Legend />
-          <Line
-            type="monotone"
-            dataKey="portfolioValue"
-            name="Portfólio"
-            stroke="#0f766e"
-            strokeWidth={2.5}
-            dot={{ r: 2.5 }}
-          />
-          {hasBenchmark ? (
+      <div className="h-72 w-full min-w-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={visibleData} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#d4d4d8" />
+            <XAxis dataKey="monthLabel" tick={{ fontSize: 12 }} />
+            <YAxis tick={{ fontSize: 12 }} width={110} tickFormatter={(value) => currencyFormatter.format(Number(value))} />
+            <Tooltip formatter={(value) => currencyFormatter.format(Number(value ?? 0))} />
+            <Legend />
             <Line
               type="monotone"
-              dataKey="benchmarkValue"
-              name="Benchmark"
-              stroke="#1d4ed8"
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              dot={false}
+              dataKey="portfolioValue"
+              name="Portfólio"
+              stroke="#0f766e"
+              strokeWidth={2.5}
+              dot={{ r: 2.5 }}
             />
-          ) : null}
-        </LineChart>
-      </ResponsiveContainer>
+            {hasBenchmark ? (
+              <Line
+                type="monotone"
+                dataKey="benchmarkValue"
+                name="Benchmark"
+                stroke="#1d4ed8"
+                strokeWidth={2}
+                strokeDasharray="5 5"
+                dot={false}
+              />
+            ) : null}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }

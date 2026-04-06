@@ -1,127 +1,192 @@
 import { Prisma } from '@prisma/client'
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { getTickerQuote } from '@/lib/market'
 import { prisma } from '@/lib/prisma'
 
-type PlatformBucket = {
-  platform: string
-  items: Array<{
-    id: string
-    ticker: string
-    isin: string | null
-    name: string
-    platform: string
-    assetType: string
-    units: number
-    avgPrice: number | null
-    positionValue: number | null
-    marketPrice: number | null
-    isStalePrice: boolean
-    archived: boolean
-  }>
+type EntryMode = 'RECURRING' | 'ONE_OFF'
+
+function currentMonthKeyUtc(): string {
+  const now = new Date()
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
 }
 
-function normalizeText(value: unknown): string | null {
-  if (typeof value !== 'string') return null
-  const normalized = value.trim()
-  return normalized ? normalized : null
+function parseMonthKey(value: string | null): { key: string; date: Date } | null {
+  const key = value ?? currentMonthKeyUtc()
+  const match = /^(\d{4})-(\d{2})$/.exec(key)
+  if (!match) return null
+
+  const year = Number(match[1])
+  const month = Number(match[2])
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) return null
+
+  return {
+    key,
+    date: new Date(Date.UTC(year, month - 1, 1)),
+  }
 }
 
-function normalizeTicker(value: unknown): string | null {
-  const normalized = normalizeText(value)
-  return normalized ? normalized.toUpperCase() : null
+function investmentIdForAccount(accountId: string): string {
+  return `account-invest:${accountId}`
 }
 
-function normalizeAssetType(value: unknown): string {
-  const normalized = normalizeText(value)
-  return normalized ? normalized.toUpperCase() : 'ETF'
+function normalizeMode(value: unknown): EntryMode {
+  return value === 'ONE_OFF' ? 'ONE_OFF' : 'RECURRING'
 }
 
-function normalizeDecimal(value: unknown): Prisma.Decimal | null {
-  if (value === null || value === undefined || value === '') return null
-
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value) || value < 0) return null
+function toDecimalOrZero(value: unknown): Prisma.Decimal {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
     return new Prisma.Decimal(value)
   }
 
   if (typeof value === 'string') {
     const parsed = Number(value.trim().replace(',', '.'))
-    if (!Number.isFinite(parsed) || parsed < 0) return null
-    return new Prisma.Decimal(parsed)
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return new Prisma.Decimal(parsed)
+    }
   }
 
-  return null
+  return new Prisma.Decimal(0)
 }
 
-function isUniqueConstraintError(error: unknown): boolean {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
+type UpsertPayload = {
+  month: { key: string; date: Date }
+  accountId: string
+  mode: EntryMode
+  amount: Prisma.Decimal
 }
 
-export async function GET() {
-  const investments = await prisma.investment.findMany({
-    orderBy: [{ platform: 'asc' }, { name: 'asc' }],
-    select: {
-      id: true,
-      ticker: true,
-      isin: true,
-      name: true,
-      platform: true,
-      isArchived: true,
-      assetType: true,
-      units: true,
-      avgPrice: true,
-    },
+async function upsertEntry(payload: UpsertPayload) {
+  return prisma.$transaction(async (tx) => {
+    const account = await tx.account.findFirst({
+      where: { id: payload.accountId, isActive: true },
+      select: { id: true, name: true, currency: true },
+    })
+
+    if (!account) {
+      throw new Error('ACCOUNT_NOT_FOUND')
+    }
+
+    const investmentId = investmentIdForAccount(account.id)
+
+    await tx.investment.upsert({
+      where: { id: investmentId },
+      update: {
+        name: account.name,
+        ticker: `ACC_${account.id.toUpperCase()}`,
+        platform: 'ACCOUNT',
+        assetType: 'ACCOUNT',
+        isArchived: false,
+      },
+      create: {
+        id: investmentId,
+        name: account.name,
+        ticker: `ACC_${account.id.toUpperCase()}`,
+        isin: null,
+        platform: 'ACCOUNT',
+        assetType: 'ACCOUNT',
+        isArchived: false,
+        units: 0,
+        avgPrice: null,
+      },
+    })
+
+    const entry = await tx.investmentEntry.upsert({
+      where: {
+        investmentId_month: {
+          investmentId,
+          month: payload.month.date,
+        },
+      },
+      create: {
+        investmentId,
+        month: payload.month.date,
+        entryType: payload.mode,
+        amountAdded: payload.amount,
+        unitsAdded: 0,
+        priceAtTime: null,
+      },
+      update: {
+        entryType: payload.mode,
+        amountAdded: payload.amount,
+        unitsAdded: 0,
+        priceAtTime: null,
+      },
+      select: {
+        id: true,
+        entryType: true,
+        amountAdded: true,
+      },
+    })
+
+    return {
+      id: entry.id,
+      accountId: account.id,
+      accountName: account.name,
+      currency: account.currency,
+      month: payload.month.key,
+      mode: entry.entryType === 'ONE_OFF' ? 'ONE_OFF' : 'RECURRING',
+      amount: entry.amountAdded.toNumber(),
+    }
   })
+}
 
-  const tickerSet = [...new Set(investments.map((item) => item.ticker.trim().toUpperCase()).filter(Boolean))]
-  const quotes = await Promise.all(tickerSet.map((ticker) => getTickerQuote(ticker)))
-  const quoteByTicker = new Map(
-    quotes
-      .filter((quote): quote is NonNullable<typeof quote> => Boolean(quote))
-      .map((quote) => [quote.ticker, quote]),
-  )
-
-  const bucketMap = new Map<string, PlatformBucket>()
-  for (const investment of investments) {
-    const ticker = investment.ticker.trim().toUpperCase()
-    const quote = quoteByTicker.get(ticker)
-    const units = investment.units.toNumber()
-
-    const item = {
-      id: investment.id,
-      ticker,
-      isin: investment.isin,
-      name: investment.name,
-      platform: investment.platform,
-      assetType: investment.assetType,
-      units,
-      avgPrice: investment.avgPrice ? investment.avgPrice.toNumber() : null,
-      positionValue: quote ? units * quote.price : null,
-      marketPrice: quote?.price ?? null,
-      isStalePrice: quote?.isStale ?? true,
-      archived: investment.isArchived,
-    }
-
-    const bucket = bucketMap.get(investment.platform) ?? {
-      platform: investment.platform,
-      items: [],
-    }
-    bucket.items.push(item)
-    bucketMap.set(investment.platform, bucket)
+export async function GET(request: Request) {
+  const url = new URL(request.url)
+  const month = parseMonthKey(url.searchParams.get('month'))
+  if (!month) {
+    return NextResponse.json({ error: 'Invalid month.' }, { status: 400 })
   }
 
-  const groups = [...bucketMap.values()].map((bucket) => ({
-    ...bucket,
-    items: bucket.items.sort((left, right) => left.name.localeCompare(right.name, 'sk-SK')),
-  }))
+  const [accounts, entries] = await Promise.all([
+    prisma.account.findMany({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      select: {
+        id: true,
+        name: true,
+        currency: true,
+      },
+    }),
+    prisma.investmentEntry.findMany({
+      where: {
+        month: month.date,
+        investmentId: { startsWith: 'account-invest:' },
+        amountAdded: { gt: 0 },
+      },
+      select: {
+        id: true,
+        investmentId: true,
+        entryType: true,
+        amountAdded: true,
+      },
+    }),
+  ])
 
-  groups.sort((left, right) => left.platform.localeCompare(right.platform, 'sk-SK'))
+  const accountById = new Map(accounts.map((account) => [account.id, account]))
+  const rows = entries
+    .map((entry) => {
+      const accountId = entry.investmentId.replace('account-invest:', '')
+      const account = accountById.get(accountId)
+      if (!account) return null
+
+      return {
+        id: entry.id,
+        accountId,
+        accountName: account.name,
+        currency: account.currency,
+        mode: entry.entryType === 'ONE_OFF' ? 'ONE_OFF' : 'RECURRING',
+        amount: entry.amountAdded.toNumber(),
+      }
+    })
+    .filter((row): row is NonNullable<typeof row> => Boolean(row))
+
+  const totalInvested = rows.reduce((acc, row) => acc + row.amount, 0)
 
   return NextResponse.json({
-    groups,
-    investmentsCount: investments.length,
+    month: month.key,
+    accounts,
+    rows,
+    totalInvested,
   })
 }
 
@@ -139,64 +204,34 @@ export async function POST(request: Request) {
   }
 
   const payload = (body ?? {}) as Record<string, unknown>
-
-  const ticker = normalizeTicker(payload.ticker)
-  const name = normalizeText(payload.name)
-  const platform = normalizeText(payload.platform)
-  const isin = normalizeText(payload.isin)
-  const assetType = normalizeAssetType(payload.assetType)
-  const units = normalizeDecimal(payload.units)
-  const avgPrice = normalizeDecimal(payload.avgPrice)
-
-  if (!ticker || !name || !platform || units === null) {
-    return NextResponse.json({ error: 'Ticker, name, platform, and units are required.' }, { status: 400 })
+  const month = parseMonthKey(typeof payload.month === 'string' ? payload.month : null)
+  if (!month) {
+    return NextResponse.json({ error: 'Invalid month.' }, { status: 400 })
   }
 
+  const accountId = typeof payload.accountId === 'string' ? payload.accountId.trim() : ''
+  if (!accountId) {
+    return NextResponse.json({ error: 'Account is required.' }, { status: 400 })
+  }
+
+  const amount = toDecimalOrZero(payload.amount)
+  const mode = normalizeMode(payload.mode)
+
   try {
-    const investment = await prisma.investment.create({
-      data: {
-        ticker,
-        isin,
-        name,
-        platform,
-        isArchived: false,
-        assetType,
-        units,
-        avgPrice,
-      },
-      select: {
-        id: true,
-        ticker: true,
-        isin: true,
-        name: true,
-        platform: true,
-        isArchived: true,
-        assetType: true,
-        units: true,
-        avgPrice: true,
-      },
+    const row = await upsertEntry({
+      month,
+      accountId,
+      mode,
+      amount,
     })
 
-    return NextResponse.json(
-      {
-        investment: {
-          ...investment,
-          units: investment.units.toNumber(),
-          avgPrice: investment.avgPrice ? investment.avgPrice.toNumber() : null,
-          archived: investment.isArchived,
-        },
-      },
-      { status: 201 },
-    )
+    return NextResponse.json({ row }, { status: 201 })
   } catch (error) {
-    if (isUniqueConstraintError(error)) {
-      return NextResponse.json(
-        { error: 'Táto investícia už existuje pre zvolenú platformu.' },
-        { status: 409 },
-      )
+    if (error instanceof Error && error.message === 'ACCOUNT_NOT_FOUND') {
+      return NextResponse.json({ error: 'Account not found.' }, { status: 404 })
     }
 
-    return NextResponse.json({ error: 'Failed to create investment.' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to save investment entry.' }, { status: 500 })
   }
 }
 
@@ -214,106 +249,33 @@ export async function PATCH(request: Request) {
   }
 
   const payload = (body ?? {}) as Record<string, unknown>
-  const action = payload.action
-  const id = normalizeText(payload.id)
-
-  if (!id) {
-    return NextResponse.json({ error: 'Investment ID is required.' }, { status: 400 })
+  const month = parseMonthKey(typeof payload.month === 'string' ? payload.month : null)
+  if (!month) {
+    return NextResponse.json({ error: 'Invalid month.' }, { status: 400 })
   }
 
-  if (action === 'edit') {
-    const ticker = normalizeTicker(payload.ticker)
-    const name = normalizeText(payload.name)
-    const platform = normalizeText(payload.platform)
-    const isin = normalizeText(payload.isin)
-    const assetType = normalizeAssetType(payload.assetType)
-    const units = normalizeDecimal(payload.units)
-    const avgPrice = normalizeDecimal(payload.avgPrice)
-
-    if (!ticker || !name || !platform || units === null) {
-      return NextResponse.json({ error: 'Invalid investment edit payload.' }, { status: 400 })
-    }
-
-    try {
-      const investment = await prisma.investment.update({
-        where: { id },
-        data: {
-          ticker,
-          name,
-          platform,
-          isin,
-          assetType,
-          units,
-          avgPrice,
-        },
-        select: {
-          id: true,
-          ticker: true,
-          isin: true,
-          name: true,
-          platform: true,
-          isArchived: true,
-          assetType: true,
-          units: true,
-          avgPrice: true,
-        },
-      })
-
-      return NextResponse.json({
-        investment: {
-          ...investment,
-          units: investment.units.toNumber(),
-          avgPrice: investment.avgPrice ? investment.avgPrice.toNumber() : null,
-          archived: investment.isArchived,
-        },
-      })
-    } catch (error) {
-      if (isUniqueConstraintError(error)) {
-        return NextResponse.json(
-          { error: 'Táto investícia už existuje pre zvolenú platformu.' },
-          { status: 409 },
-        )
-      }
-
-      return NextResponse.json({ error: 'Investícia neexistuje.' }, { status: 404 })
-    }
+  const accountId = typeof payload.accountId === 'string' ? payload.accountId.trim() : ''
+  if (!accountId) {
+    return NextResponse.json({ error: 'Account is required.' }, { status: 400 })
   }
 
-  if (action === 'archive' || action === 'unarchive') {
-    try {
-      const existing = await prisma.investment.findUnique({
-        where: { id },
-        select: { isArchived: true },
-      })
+  const amount = toDecimalOrZero(payload.amount)
+  const mode = normalizeMode(payload.mode)
 
-      if (!existing) {
-        return NextResponse.json({ error: 'Investícia neexistuje.' }, { status: 404 })
-      }
+  try {
+    const row = await upsertEntry({
+      month,
+      accountId,
+      mode,
+      amount,
+    })
 
-      const nextArchived = action === 'archive'
-      if (existing.isArchived === nextArchived) {
-        return NextResponse.json({ ok: true })
-      }
-
-      await prisma.investment.update({
-        where: { id },
-        data: {
-          isArchived: nextArchived,
-        },
-      })
-
-      return NextResponse.json({ ok: true })
-    } catch (error) {
-      if (isUniqueConstraintError(error)) {
-        return NextResponse.json(
-          { error: 'Konflikt: už existuje aktívna investícia s rovnakým tickerom a platformou.' },
-          { status: 409 },
-        )
-      }
-
-      return NextResponse.json({ error: 'Failed to update archive state.' }, { status: 500 })
+    return NextResponse.json({ row })
+  } catch (error) {
+    if (error instanceof Error && error.message === 'ACCOUNT_NOT_FOUND') {
+      return NextResponse.json({ error: 'Account not found.' }, { status: 404 })
     }
-  }
 
-  return NextResponse.json({ error: 'Unsupported action.' }, { status: 400 })
+    return NextResponse.json({ error: 'Failed to update investment entry.' }, { status: 500 })
+  }
 }

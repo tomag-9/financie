@@ -50,6 +50,9 @@ Ak chces ist krok po kroku, postupuj podla sekcie Rychly start.
 - Seed je idempotentny pre mutable data (upravi existujuce records, nevytvara stale nove).
 - Seed normalizuje month na UTC prvy den mesiaca.
 - Pri prvom seede sa nacita `ADMIN_PASSWORD` a ulozi sa jeho hash do `Settings.data.password_hash`.
+- Seed data su sifrovane v `prisma/seed-data/seed-data.json.enc` a deifruju sa cez `SEED_DATA_DECODE_PASSWORD`.
+- Na zmenu workbooku pouzi `SEED_DATA_ENCODE_PASSWORD` pri sifrovani a `SEED_DATA_DECODE_PASSWORD` pri seede.
+- Ak menis workbook, pouzi `npm run seed:encrypt` a `npm run seed:decrypt`.
 
 ## Environment
 Povinne minimalne:

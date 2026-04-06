@@ -4,6 +4,7 @@ import { CustomFieldType } from '@prisma/client'
 import { auth } from '@/lib/auth'
 import { parseSnapshotCustomValues, serializeSnapshotCustomValues } from '@/lib/custom-fields'
 import { prisma } from '@/lib/prisma'
+import { SnapshotMonthPicker } from '@/components/snapshots/SnapshotMonthPicker'
 
 type MonthSnapshotsPageProps = {
   params: Promise<{
@@ -203,24 +204,7 @@ export default async function MonthSnapshotsPage({ params }: MonthSnapshotsPageP
 
       <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <form action="/snapshots" method="get" className="flex items-end gap-2">
-            <label htmlFor="month-picker" className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
-              Month
-            </label>
-            <input
-              id="month-picker"
-              name="month"
-              type="month"
-              defaultValue={monthKey}
-              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-emerald-500 transition focus:ring-2 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-            />
-            <button
-              type="submit"
-              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            >
-              Open
-            </button>
-          </form>
+          <SnapshotMonthPicker value={monthKey} />
 
           <p className="text-sm text-zinc-600 dark:text-zinc-300">Active month: {monthLabel}</p>
         </div>

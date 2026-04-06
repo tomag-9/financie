@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+type EntryMode = 'RECURRING' | 'ONE_OFF'
+
 function currentMonthKeyUtc(): string {
   const now = new Date()
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
@@ -38,52 +40,12 @@ function toDecimalOrZero(value: unknown): Prisma.Decimal {
   return new Prisma.Decimal(0)
 }
 
-function toDecimalOrNull(value: unknown): Prisma.Decimal | null {
-  if (value === '' || value === null || value === undefined) return null
-
-  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
-    return new Prisma.Decimal(value)
-  }
-
-  if (typeof value === 'string') {
-    const parsed = Number(value.trim().replace(',', '.'))
-    if (Number.isFinite(parsed) && parsed >= 0) {
-      return new Prisma.Decimal(parsed)
-    }
-  }
-
-  return null
+function normalizeMode(value: unknown): EntryMode {
+  return value === 'ONE_OFF' ? 'ONE_OFF' : 'RECURRING'
 }
 
-function normalizeEntryType(value: unknown): string {
-  const normalized = typeof value === 'string' ? value.trim().toUpperCase() : ''
-  return normalized === 'ONE_OFF' ? 'ONE_OFF' : 'RECURRING'
-}
-
-async function recomputeInvestment(id: string, tx: Prisma.TransactionClient): Promise<void> {
-  const entries = await tx.investmentEntry.findMany({
-    where: { investmentId: id },
-    select: {
-      unitsAdded: true,
-      amountAdded: true,
-    },
-  })
-
-  let totalUnits = 0
-  let totalAmount = 0
-
-  for (const entry of entries) {
-    totalUnits += entry.unitsAdded.toNumber()
-    totalAmount += entry.amountAdded.toNumber()
-  }
-
-  await tx.investment.update({
-    where: { id },
-    data: {
-      units: totalUnits,
-      avgPrice: totalUnits > 0 ? totalAmount / totalUnits : null,
-    },
-  })
+function investmentIdForAccount(accountId: string): string {
+  return `account-invest:${accountId}`
 }
 
 export async function GET(request: Request) {
@@ -93,58 +55,40 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Invalid month.' }, { status: 400 })
   }
 
-  const [investments, entries] = await Promise.all([
-    prisma.investment.findMany({
-      where: {
-        isArchived: false,
-      },
-      orderBy: [{ platform: 'asc' }, { name: 'asc' }],
-      select: {
-        id: true,
-        ticker: true,
-        name: true,
-        platform: true,
-        assetType: true,
-        units: true,
-        avgPrice: true,
-      },
-    }),
-    prisma.investmentEntry.findMany({
-      where: {
-        month: month.date,
-      },
-      select: {
-        id: true,
-        investmentId: true,
-        entryType: true,
-        unitsAdded: true,
-        amountAdded: true,
-        priceAtTime: true,
-      },
-    }),
-  ])
+  const accounts = await prisma.account.findMany({
+    where: { isActive: true },
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    select: {
+      id: true,
+      name: true,
+      currency: true,
+    },
+  })
 
-  const entryByInvestment = new Map(entries.map((entry) => [entry.investmentId, entry]))
+  const investmentIds = accounts.map((account) => investmentIdForAccount(account.id))
+  const entries = await prisma.investmentEntry.findMany({
+    where: {
+      month: month.date,
+      investmentId: { in: investmentIds },
+    },
+    select: {
+      investmentId: true,
+      entryType: true,
+      amountAdded: true,
+    },
+  })
 
-  const rows = investments.map((investment) => {
-    const entry = entryByInvestment.get(investment.id)
+  const entryByInvestmentId = new Map(entries.map((entry) => [entry.investmentId, entry]))
+
+  const rows = accounts.map((account) => {
+    const investmentId = investmentIdForAccount(account.id)
+    const entry = entryByInvestmentId.get(investmentId)
     return {
-      investmentId: investment.id,
-      ticker: investment.ticker,
-      name: investment.name,
-      platform: investment.platform,
-      assetType: investment.assetType,
-      currentUnits: investment.units.toNumber(),
-      avgPrice: investment.avgPrice ? investment.avgPrice.toNumber() : null,
-      entry: entry
-        ? {
-            id: entry.id,
-        entryType: entry.entryType,
-            unitsAdded: entry.unitsAdded.toNumber(),
-            amountAdded: entry.amountAdded.toNumber(),
-            priceAtTime: entry.priceAtTime ? entry.priceAtTime.toNumber() : null,
-          }
-        : null,
+      accountId: account.id,
+      accountName: account.name,
+      currency: account.currency,
+      mode: (entry?.entryType === 'ONE_OFF' ? 'ONE_OFF' : 'RECURRING') as EntryMode,
+      amount: entry?.amountAdded.toNumber() ?? 0,
     }
   })
 
@@ -185,16 +129,14 @@ export async function POST(request: Request) {
     .map((row) => (typeof row === 'object' && row !== null ? (row as Record<string, unknown>) : null))
     .filter((row): row is Record<string, unknown> => Boolean(row))
     .map((row) => {
-      const investmentId = typeof row.investmentId === 'string' ? row.investmentId.trim() : ''
+      const accountId = typeof row.accountId === 'string' ? row.accountId.trim() : ''
       return {
-        investmentId,
-        entryType: normalizeEntryType(row.entryType),
-        unitsAdded: toDecimalOrZero(row.unitsAdded),
-        amountAdded: toDecimalOrZero(row.amountAdded),
-        priceAtTime: toDecimalOrNull(row.priceAtTime),
+        accountId,
+        mode: normalizeMode(row.mode),
+        amount: toDecimalOrZero(row.amount),
       }
     })
-    .filter((row) => row.investmentId)
+    .filter((row) => row.accountId)
 
   if (normalizedRows.length === 0) {
     return NextResponse.json({ error: 'No rows were sent to save.' }, { status: 400 })
@@ -203,41 +145,72 @@ export async function POST(request: Request) {
   let updated: number
   try {
     updated = await prisma.$transaction(async (tx) => {
-      const touchedInvestmentIds = new Set<string>()
+      const validAccounts = await tx.account.findMany({
+        where: {
+          id: { in: normalizedRows.map((row) => row.accountId) },
+          isActive: true,
+        },
+        select: { id: true, name: true },
+      })
+      const accountMap = new Map(validAccounts.map((account) => [account.id, account]))
 
       for (const row of normalizedRows) {
+        const account = accountMap.get(row.accountId)
+        if (!account) continue
+
+        const investmentId = investmentIdForAccount(account.id)
+
+        await tx.investment.upsert({
+          where: { id: investmentId },
+          update: {
+            name: account.name,
+            ticker: `ACC_${account.id.toUpperCase()}`,
+            platform: 'ACCOUNT',
+            assetType: 'ACCOUNT',
+            isArchived: false,
+          },
+          create: {
+            id: investmentId,
+            name: account.name,
+            ticker: `ACC_${account.id.toUpperCase()}`,
+            isin: null,
+            platform: 'ACCOUNT',
+            assetType: 'ACCOUNT',
+            isArchived: false,
+            units: 0,
+            avgPrice: null,
+          },
+        })
+
         await tx.investmentEntry.upsert({
           where: {
             investmentId_month: {
-              investmentId: row.investmentId,
+              investmentId,
               month: month.date,
             },
           },
           create: {
-            investmentId: row.investmentId,
+            investmentId,
             month: month.date,
-            entryType: row.entryType,
-            unitsAdded: row.unitsAdded,
-            amountAdded: row.amountAdded,
-            priceAtTime: row.priceAtTime,
+            entryType: row.mode,
+            amountAdded: row.amount,
+            unitsAdded: 0,
+            priceAtTime: null,
           },
           update: {
-            entryType: row.entryType,
-            unitsAdded: row.unitsAdded,
-            amountAdded: row.amountAdded,
-            priceAtTime: row.priceAtTime,
+            entryType: row.mode,
+            amountAdded: row.amount,
+            unitsAdded: 0,
+            priceAtTime: null,
           },
         })
-
-        touchedInvestmentIds.add(row.investmentId)
-      }
-
-      for (const investmentId of touchedInvestmentIds) {
-        await recomputeInvestment(investmentId, tx)
       }
 
       const monthEntries = await tx.investmentEntry.findMany({
-        where: { month: month.date },
+        where: {
+          month: month.date,
+          investmentId: { startsWith: 'account-invest:' },
+        },
         select: {
           amountAdded: true,
         },

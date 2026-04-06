@@ -2,13 +2,107 @@
 // Spusti: npx prisma db seed
 // Pridá predvolené účty, income sources a historické JOJ dáta
 
-import { PrismaClient, AccountType } from '@prisma/client'
+import { createDecipheriv, scryptSync } from 'crypto'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
+import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
+const MAGIC = Buffer.from('FINSEED1')
+const SALT_LENGTH = 16
+const IV_LENGTH = 12
+const TAG_LENGTH = 16
+const KEY_LENGTH = 32
+
+const ACCOUNT_TYPES = {
+  BANK: 'BANK',
+  INVESTMENT: 'INVESTMENT',
+  CASH: 'CASH',
+  PENSION: 'PENSION',
+} as const
+
+type SeedPayload = {
+  accounts: Array<{
+    id: string
+    name: string
+    type: keyof typeof ACCOUNT_TYPES
+    sortOrder: number
+  }>
+  incomeSources: Array<{
+    id: string
+    name: string
+    color: string
+  }>
+  jojHistory: Array<[
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+  ]>
+  snapshots: Array<[
+    string,
+    Record<string, number>
+  ]>
+  income2026: Array<[
+    string,
+    string,
+    number,
+  ]>
+}
+
+function getSeedDecodePassword(): string {
+  const password = process.env.SEED_DATA_DECODE_PASSWORD?.trim() || process.env.SEED_DATA_PASSWORD?.trim()
+  if (!password) {
+    throw new Error('SEED_DATA_DECODE_PASSWORD or SEED_DATA_PASSWORD is not set.')
+  }
+
+  return password
+}
+
+function decryptSeedBuffer(encrypted: Buffer, password: string): Buffer {
+  if (encrypted.length < MAGIC.length + SALT_LENGTH + IV_LENGTH + TAG_LENGTH) {
+    throw new Error('Encrypted seed file is too short.')
+  }
+
+  const magic = encrypted.subarray(0, MAGIC.length)
+  if (!magic.equals(MAGIC)) {
+    throw new Error('Invalid seed file format.')
+  }
+
+  const saltStart = MAGIC.length
+  const ivStart = saltStart + SALT_LENGTH
+  const tagStart = ivStart + IV_LENGTH
+  const dataStart = tagStart + TAG_LENGTH
+
+  const salt = encrypted.subarray(saltStart, ivStart)
+  const iv = encrypted.subarray(ivStart, tagStart)
+  const tag = encrypted.subarray(tagStart, dataStart)
+  const ciphertext = encrypted.subarray(dataStart)
+
+  const key = scryptSync(password, salt, KEY_LENGTH)
+  const decipher = createDecipheriv('aes-256-gcm', key, iv)
+  decipher.setAuthTag(tag)
+
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()])
+}
+
+function loadSeedPayload(): SeedPayload {
+  const payloadPath = resolve(process.cwd(), 'prisma/seed-data/seed-data.json.enc')
+  const encrypted = readFileSync(payloadPath)
+  const password = getSeedDecodePassword()
+  const decrypted = decryptSeedBuffer(encrypted, password)
+  return JSON.parse(decrypted.toString('utf8')) as SeedPayload
+}
+
 async function main() {
   console.log('🌱 Seeding database...')
+
+  const seedPayload = loadSeedPayload()
 
   // ─── Settings (heslo z ENV) ──────────────────────────────────────────────
   const adminPassword = process.env.ADMIN_PASSWORD
@@ -48,38 +142,27 @@ async function main() {
   console.log('✓ Settings created')
 
   // ─── Účty ────────────────────────────────────────────────────────────────
-  const accounts = [
-    { id: 'tatra', name: 'Tatra', type: AccountType.BANK, sortOrder: 0 },
-    { id: 'revolut', name: 'Revolut', type: AccountType.BANK, sortOrder: 1 },
-    { id: 'cash', name: 'Cash', type: AccountType.CASH, sortOrder: 2 },
-    { id: 'conseq', name: 'Conseq', type: AccountType.INVESTMENT, sortOrder: 3 },
-    { id: 'eic', name: 'EIC', type: AccountType.INVESTMENT, sortOrder: 4 },
-    { id: 'xtb', name: 'XTB', type: AccountType.INVESTMENT, sortOrder: 5 },
-    { id: '2pilier', name: '2. pilier', type: AccountType.PENSION, sortOrder: 6 },
-  ]
-
-  for (const acc of accounts) {
+  for (const acc of seedPayload.accounts) {
     await prisma.account.upsert({
       where: { id: acc.id },
       update: {
         name: acc.name,
-        type: acc.type,
+        type: ACCOUNT_TYPES[acc.type],
         sortOrder: acc.sortOrder,
         isActive: true,
       },
-      create: acc,
+      create: {
+        id: acc.id,
+        name: acc.name,
+        type: ACCOUNT_TYPES[acc.type],
+        sortOrder: acc.sortOrder,
+      },
     })
   }
   console.log('✓ Accounts created')
 
   // ─── Income sources ───────────────────────────────────────────────────────
-  const sources = [
-    { id: 'joj',    name: 'JOJ',            color: '#378ADD' },
-    { id: 'brusko', name: 'Zdravé Brusko',  color: '#1D9E75' },
-    { id: 'ine',    name: 'Iné',            color: '#888780' },
-  ]
-
-  for (const src of sources) {
+  for (const src of seedPayload.incomeSources) {
     await prisma.incomeSource.upsert({
       where: { id: src.id },
       update: {
@@ -93,60 +176,29 @@ async function main() {
   console.log('✓ Income sources created')
 
   // ─── Historické JOJ dáta (z tvojho sheetu) ───────────────────────────────
-  const jojHistory = [
-    // [rok, mesiac (0-indexed), streamy, rate, tv, bonus, received]
-    [2022,  8,  3, 30,    0,   0,     0],
-    [2022,  9, 15, 30,    0,   0,   549],
-    [2022, 10, 14, 30,    0,   0,   427],
-    [2022, 11,  9, 30,    0,   0, 298.9],
-    [2023,  0, 16, 30,    0,   0, 418.46],
-    [2023,  1, 12, 30,    0,   0, 358.68],
-    [2023,  2, 22, 30,    0,   0, 657.91],
-    [2023,  3, 19, 30,    0,   0, 567.91],
-    [2023,  4, 11, 30,    0,   0, 298.9],
-    [2023,  5,  4, 30,    0,   0, 159.41],
-    [2023,  7,  4, 30,    0,   0,   122],
-    [2023,  8, 20, 30,    0,   0,  579.5],
-    [2023,  9, 20, 40,    0,  80, 894.56],
-    [2023, 10, 19, 40,    0,   0, 731.88],
-    [2023, 11, 17, 40,    0,   0, 691.22],
-    [2024,  0, 14, 40,  440,   0, 1097.89],
-    [2024,  1, 12, 40,    0,   0, 487.92],
-    [2024,  2, 20, 40,  520,   0, 1341.84],
-    [2024,  3, 10, 40, 1190, 120, 1737.74],
-    [2024,  4, 14, 40,  950,   0, 1535.03],
-    [2024,  5,  1, 40,  570,   0, 620.11],
-    [2024,  6,  1, 40,   70,   0, 111.82],
-    [2024,  7,  1, 40,  560,   0, 609.94],
-    [2024,  8,  6, 40,  360,   0, 609.92],
-    [2024,  9, 10, 40,  770,   0, 1189.36],
-    [2024, 10,  8, 40,  440, 150, 919.99],
-  ]
-
-  for (const [year, month, streams, rate, tv, bonus, received] of jojHistory) {
-    const monthDate = new Date(Date.UTC(year as number, month as number, 1))
-    const expected = (streams as number) * (rate as number) + (tv as number) + (bonus as number)
-    const hasReceived = received !== null && received !== undefined
-    const receivedValue = hasReceived ? (received as number) : null
-    const diff = hasReceived ? (received as number) - expected : null
+  for (const [year, month, streams, rate, tv, bonus, received] of seedPayload.jojHistory) {
+    const monthDate = new Date(Date.UTC(year, month, 1))
+    const expected = streams * rate + tv + bonus
+    const receivedValue = received
+    const diff = receivedValue !== null && receivedValue !== undefined ? receivedValue - expected : null
 
     await prisma.jojDetail.upsert({
       where: { month: monthDate },
       update: {
-        streamCount: streams as number,
-        ratePerStream: rate as number,
-        tvHonorar: tv as number,
-        bonus: bonus as number,
+        streamCount: streams,
+        ratePerStream: rate,
+        tvHonorar: tv,
+        bonus: bonus,
         expectedTotal: expected,
         receivedTotal: receivedValue,
         diff,
       },
       create: {
         month: monthDate,
-        streamCount: streams as number,
-        ratePerStream: rate as number,
-        tvHonorar: tv as number,
-        bonus: bonus as number,
+        streamCount: streams,
+        ratePerStream: rate,
+        tvHonorar: tv,
+        bonus: bonus,
         expectedTotal: expected,
         receivedTotal: receivedValue,
         diff,
@@ -154,16 +206,16 @@ async function main() {
     })
 
     // Uloží aj do IncomeEntry
-    if (hasReceived) {
+    if (receivedValue !== null && receivedValue !== undefined) {
       await prisma.incomeEntry.upsert({
         where: { sourceId_month: { sourceId: 'joj', month: monthDate } },
         update: {
-          amount: received as number,
+          amount: receivedValue,
         },
         create: {
           sourceId: 'joj',
           month: monthDate,
-          amount: received as number,
+          amount: receivedValue,
         },
       })
     }
@@ -171,19 +223,11 @@ async function main() {
   console.log('✓ JOJ history seeded')
 
   // ─── Historické Sumár snapshoty (Jan–Apr 2026) ────────────────────────────
-  const snapshots = [
-    // [mesiac, { accountId: balance }]
-    ['2026-01', { tatra: 11945.36, cash: 2000, conseq: 1346.61, eic: 30496.55, '2pilier': 59.43 }],
-    ['2026-02', { tatra: 15597.12, cash: 2000, conseq: 1306.96, eic: 30366.90, '2pilier': 60.28 }],
-    ['2026-03', { tatra: 7202.32,  cash: 2000, conseq: 1331.15, eic: 35992.80, xtb: 4500, '2pilier': 77.04 }],
-    ['2026-04', { tatra: 4741.21,  revolut: 112, cash: 2000, conseq: 1326.8, eic: 35220.56, xtb: 5218.16, '2pilier': 75.03 }],
-  ]
-
-  for (const [monthStr, balances] of snapshots) {
-    const [y, m] = (monthStr as string).split('-').map(Number)
+  for (const [monthStr, balances] of seedPayload.snapshots) {
+    const [y, m] = monthStr.split('-').map(Number)
     const monthDate = new Date(Date.UTC(y, m - 1, 1))
 
-    for (const [accountId, balance] of Object.entries(balances as Record<string, number>)) {
+    for (const [accountId, balance] of Object.entries(balances)) {
       await prisma.snapshot.upsert({
         where: { accountId_month: { accountId, month: monthDate } },
         update: { balance },
@@ -194,21 +238,15 @@ async function main() {
   console.log('✓ Historical snapshots seeded (Jan–Apr 2026)')
 
   // ─── Zárobky 2026 ────────────────────────────────────────────────────────
-  const income2026 = [
-    ['2026-01', 'joj',    1458.83],
-    ['2026-01', 'brusko', 1500.00],
-    ['2026-02', 'brusko', 1000.00],
-  ]
-
-  for (const [monthStr, sourceId, amount] of income2026) {
-    const [y, m] = (monthStr as string).split('-').map(Number)
+  for (const [monthStr, sourceId, amount] of seedPayload.income2026) {
+    const [y, m] = monthStr.split('-').map(Number)
     const monthDate = new Date(Date.UTC(y, m - 1, 1))
     await prisma.incomeEntry.upsert({
-      where: { sourceId_month: { sourceId: sourceId as string, month: monthDate } },
+      where: { sourceId_month: { sourceId, month: monthDate } },
       update: {
-        amount: amount as number,
+        amount,
       },
-      create: { sourceId: sourceId as string, month: monthDate, amount: amount as number },
+      create: { sourceId, month: monthDate, amount },
     })
   }
   console.log('✓ Income 2026 seeded')

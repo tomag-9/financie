@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { MonthPicker } from '@/components/ui/MonthPicker'
 
 type Source = {
   id: string
@@ -256,18 +257,7 @@ export default function IncomePage() {
       </header>
 
       <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200" htmlFor="income-month-picker">
-            Month
-          </label>
-          <input
-            id="income-month-picker"
-            type="month"
-            value={month}
-            onChange={(event) => setMonth(event.target.value)}
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-          />
-        </div>
+        <MonthPicker value={month} onChange={setMonth} className="w-full sm:w-[22rem]" />
       </div>
 
       <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
