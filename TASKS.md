@@ -158,19 +158,19 @@
 **Súbory**: `prisma/seed.ts`
 **Úloha**: Vytvorí predvolené účty (Tatra BANK, Revolut BANK, Cash CASH, Conseq INVESTMENT, EIC INVESTMENT, XTB INVESTMENT, 2. pilier PENSION). Vytvorí predvolené income sources (JOJ, Zdravé Brusko, Iné). Importuje historické dáta z priloženého CSV (voliteľné).
 **Vstup pre Clauda**: "Implementuj F7-1 — seed skript"
-- [ ] hotovo
+- [x] hotovo
 
 ### F7-2: Dockerfile + docker-compose
 **Súbory**: `Dockerfile`, `docker-compose.yml`, `.dockerignore`
 **Úloha**: Multi-stage build (node:22-alpine). SQLite databáza na volume `/data/financie.db`. ENV premenné zo `.env`. Health check endpoint `/api/health`. Dokploy-ready.
 **Vstup pre Clauda**: "Implementuj F7-2 — Docker setup"
-- [ ] hotovo
+- [x] hotovo
 
 ### F7-3: ENV template + dokumentácia
 **Súbory**: `ENV_TEMPLATE.md`, `README.md`
 **Úloha**: Všetky povinné ENV premenné s popisom. Inštalačný postup (5 krokov). Troubleshooting sekcia.
 **Vstup pre Clauda**: "Implementuj F7-3 — ENV template a README"
-- [ ] hotovo
+- [x] hotovo
 
 ---
 

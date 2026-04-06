@@ -10,43 +10,64 @@ Self-hosted osobna appka na mesacne sledovanie financii (ucty, prijmy, investici
 - Recharts
 - web-push + service worker
 
-## Lokalny development
-1. Nainstaluj dependencies:
+## Co aplikacia robi
+- Mesacne snapshots uctov a net worth.
+- Evidencia prijmov, JOJ detailov, investicii a zavazkov.
+- PWA instalacia, offline fallback a push pripomienky.
+
+## Rychly start
+1. Naklonuj repo a nainstaluj dependencies.
 
 ```bash
 npm install
 ```
 
-2. Vytvor env subor:
+2. Skopiruj env template.
 
 ```bash
 cp ENV_TEMPLATE.md .env.local
 ```
 
-3. Nastav `DATABASE_URL` (napr. `file:./financie.db`) a dopln tajne hodnoty.
+3. Vypln povinne hodnoty v `.env.local`.
 
-4. Aplikuj migracie:
+4. Spusti migracie a seed.
 
 ```bash
 npx prisma migrate deploy
-```
-
-5. Napln DB seed datami:
-
-```bash
 npm run db:seed
 ```
 
-6. Spusti appku:
+5. Spusti aplikaciu.
 
 ```bash
 npm run dev
 ```
 
+## Lokalny development
+Ak chces ist krok po kroku, postupuj podla sekcie Rychly start.
+
 ## Seed poznamky
 - Seed je idempotentny pre mutable data (upravi existujuce records, nevytvara stale nove).
 - Seed normalizuje month na UTC prvy den mesiaca.
 - Pri prvom seede sa nacita `ADMIN_PASSWORD` a ulozi sa jeho hash do `Settings.data.password_hash`.
+
+## Environment
+Povinne minimalne:
+- `AUTH_SECRET`
+- `NEXTAUTH_URL`
+- `DATABASE_URL`
+- `ADMIN_PASSWORD`
+
+PWA a push:
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+- `VAPID_EMAIL`
+
+Volitelne:
+- `ALPHA_VANTAGE_KEY`
+- `ENABLE_CRON`
+- `CRON_SECRET`
+- `DEFAULT_SAVINGS_TARGET`
 
 ## Produkcny deploy (Docker / Dokploy)
 
@@ -67,6 +88,12 @@ Compose automaticky:
 - Persistent volume: mount na `/data`
 - Env: nastav v UI (necommituj `.env.local`)
 
+## Troubleshooting
+- Ak login hlasi missing password, skontroluj `ADMIN_PASSWORD` a znovu spusti seed.
+- Ak push notifikacie neidu, skontroluj VAPID kluce a ci ma prehliadac povolene notifikacie.
+- Ak Docker start padne na migracii, over `DATABASE_URL=file:/data/financie.db` a ci je volume pripojene.
+- Ak aplikacia nevie najst DB lokalne, skontroluj, ze sqlite subor existuje po migracii.
+
 ## PWA a push
 - Manifest: `public/manifest.json`
 - Service worker: `public/sw.js`
@@ -74,6 +101,7 @@ Compose automaticky:
 - Push subscription endpoint: `POST /api/push`
 - Cron trigger endpoint: `POST /api/cron`
   - ak je nastaveny `CRON_SECRET`, posli `Authorization: Bearer <CRON_SECRET>`
+- Health check endpoint: `GET /api/health`
 
 ## Utility prikazy
 

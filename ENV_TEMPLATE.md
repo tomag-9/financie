@@ -1,6 +1,17 @@
 # ENV Template
 
-Skopíruj do `.env.local` a vyplň hodnoty.
+Skopiruj do `.env.local` a vypln hodnoty.
+
+Povinne minimum pre spustenie:
+- `AUTH_SECRET`
+- `NEXTAUTH_URL`
+- `DATABASE_URL`
+- `ADMIN_PASSWORD`
+
+Povinne pre push notifikacie:
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+- `VAPID_EMAIL`
 
 ```bash
 # ─── NextAuth ──────────────────────────────────────────────────────────────
@@ -58,3 +69,8 @@ V Dokploy nastav tieto premenné cez Environment UI (nie .env súbor):
 - Všetky ostatné z vyššie
 
 Volume mount: `/data` → persistentný storage pre SQLite.
+
+## Poznamky
+- Ak nepouzivas push, `ENABLE_CRON` moze byt `false`.
+- `CRON_SECRET` je odporucany na ochranu `/api/cron` endpointu.
+- Ak menis `ADMIN_PASSWORD`, spusť seed znova, aby sa aktualizoval hash v `Settings`.
