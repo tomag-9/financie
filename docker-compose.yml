@@ -28,10 +28,14 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=dokploy-network"
-      - "traefik.http.routers.financie.rule=Host(`finance.tomag.xyz`)"
-      - "traefik.http.routers.financie.entrypoints=web,websecure"
-      - "traefik.http.routers.financie.tls=true"
-      - "traefik.http.routers.financie.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.financie-http.rule=Host(`finance.tomag.xyz`)"
+      - "traefik.http.routers.financie-http.entrypoints=web"
+      - "traefik.http.routers.financie-http.service=financie"
+      - "traefik.http.routers.financie-https.rule=Host(`finance.tomag.xyz`)"
+      - "traefik.http.routers.financie-https.entrypoints=websecure"
+      - "traefik.http.routers.financie-https.tls=true"
+      - "traefik.http.routers.financie-https.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.financie-https.service=financie"
       - "traefik.http.services.financie.loadbalancer.server.port=3000"
     networks:
       - default
