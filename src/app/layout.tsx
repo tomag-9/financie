@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Financie',
-  description: 'Osobny financny prehlad',
+  title: 'Magi',
+  description: 'Osobny Management Asistnent',
   manifest: '/manifest.json',
 };
 

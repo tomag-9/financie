@@ -95,7 +95,7 @@ export function AppNav({ hasJojAlert }: NavProps) {
     <>
       <aside className="hidden w-64 shrink-0 border-r border-zinc-200 bg-white/80 px-4 py-6 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80 md:block">
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Financie</h2>
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Magi</h2>
           <ThemeToggle />
         </div>
         <nav className="space-y-1">

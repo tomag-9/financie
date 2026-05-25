@@ -31,4 +31,4 @@ COPY --from=builder /app/next.config.ts ./next.config.ts
 RUN mkdir -p /data
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run db:seed && npm run start"]
+CMD ["sh", "-c", "npx prisma migrate deploy && if [ \"$SEED_ON_START\" = \"true\" ]; then npm run db:seed; fi && npm run start"]

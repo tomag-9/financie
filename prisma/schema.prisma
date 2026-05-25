@@ -116,6 +116,23 @@ model Settings {
   data Json
 }
 
+model AiAlarm {
+  id              String   @id @default(cuid())
+  label           String?
+  time            String
+  date            DateTime?
+  days            String?
+  isRepeat        Boolean  @default(false)
+  isEnabled       Boolean  @default(true)
+  runClaude       Boolean  @default(true)
+  runCodex        Boolean  @default(false)
+  lastTriggeredAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isEnabled, time])
+}
+
 enum AccountType {
   BANK
   INVESTMENT
