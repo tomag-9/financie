@@ -1,8 +1,8 @@
 services:
   financie:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: ../Dockerfile
     container_name: financie-app
     restart: unless-stopped
     expose:

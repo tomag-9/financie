@@ -4,7 +4,7 @@ services:
     container_name: claude-cli
     working_dir: /workspace
     volumes:
-      - .:/workspace
+      - ..:/workspace
     command: sh -lc "npm install -g @anthropic-ai/claude-code && exec sh"
     stdin_open: true
     tty: true
@@ -14,7 +14,7 @@ services:
     container_name: codex-cli
     working_dir: /workspace
     volumes:
-      - .:/workspace
+      - ..:/workspace
     command: sh -lc "npm install -g @openai/codex && exec sh"
     stdin_open: true
     tty: true
