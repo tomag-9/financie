@@ -24,6 +24,8 @@ export default function NotificationsPage() {
   const [error, setError] = useState<string | null>(null)
   const [publicKey, setPublicKey] = useState<string | null>(null)
 
+  const isEnabled = permission === 'granted' && subscribed
+
   useEffect(() => {
     let mounted = true
 
@@ -165,14 +167,20 @@ export default function NotificationsPage() {
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void enableNotifications()}
-              disabled={saving || loading}
-              className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-            >
-              {saving ? 'Saving…' : 'Enable notifications'}
-            </button>
+            {isEnabled ? (
+              <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                Notifications enabled
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void enableNotifications()}
+                disabled={saving || loading}
+                className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+              >
+                {saving ? 'Saving…' : 'Enable notifications'}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => void disableNotifications()}
