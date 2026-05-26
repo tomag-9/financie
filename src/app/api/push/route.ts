@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth'
 import { savePushSubscription } from '@/lib/push'
 import type { PushSubscriptionData } from '@/types'
 
+export const runtime = 'nodejs'
+
 function isValidSubscription(value: unknown): value is PushSubscriptionData {
   if (typeof value !== 'object' || value === null) return false
   const record = value as Record<string, unknown>

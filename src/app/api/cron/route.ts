@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { sendPushNotification } from '@/lib/push'
 
+export const runtime = 'nodejs'
+
 function previousMonthKeyUtc(): string {
   const now = new Date()
   const year = now.getUTCMonth() === 0 ? now.getUTCFullYear() - 1 : now.getUTCFullYear()

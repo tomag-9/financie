@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { syncAiAlarmScheduler } from '@/lib/ai-alarm-scheduler'
 
+export const runtime = 'nodejs'
+
 function normalizeTime(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
