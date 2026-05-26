@@ -25,7 +25,12 @@ async function logoutAction(): Promise<void> {
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   startAiAlarmScheduler()
 
-  const session = await auth()
+  let session = null
+  try {
+    session = await auth()
+  } catch {
+    session = null
+  }
   if (!session) {
     redirect('/login')
   }
@@ -60,7 +65,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   aria-label="Account menu"
                   className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-100 px-3 py-2 text-xs font-medium text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
                 >
-                  <span className="size-2 rounded-full bg-emerald-500" aria-hidden="true" />
+                  <span className="size-2 rounded-full bg-zinc-900 dark:bg-zinc-100" aria-hidden="true" />
                   Single-user mode
                 </button>
               </div>

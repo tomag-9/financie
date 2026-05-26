@@ -24,8 +24,11 @@ services:
       SEED_DATA_ENCODE_PASSWORD: ${SEED_DATA_ENCODE_PASSWORD:-}
       SEED_DATA_DECODE_PASSWORD: ${SEED_DATA_DECODE_PASSWORD:-}
       SEED_ON_START: ${SEED_ON_START:-true}
+      CLAUDE_ALARM_COMMAND: ${CLAUDE_ALARM_COMMAND:-docker exec -i claude-cli claude -p "Say, hello"}
+      CODEX_ALARM_COMMAND: ${CODEX_ALARM_COMMAND:-docker exec -i codex-cli codex -p "Say, hello"}
     volumes:
       - financie_data_dev:/data
+      - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
   financie_data_dev:

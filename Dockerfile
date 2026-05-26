@@ -19,7 +19,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl docker-cli
 
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public

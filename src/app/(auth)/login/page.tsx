@@ -46,7 +46,12 @@ async function passwordLoginAction(formData: FormData): Promise<void> {
 async function verifyTotpAction(formData: FormData): Promise<void> {
   'use server'
 
-  const session = await auth()
+  let session = null
+  try {
+    session = await auth()
+  } catch {
+    session = null
+  }
   if (!session) {
     redirect('/login')
   }
