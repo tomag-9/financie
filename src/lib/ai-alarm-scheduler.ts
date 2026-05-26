@@ -8,6 +8,7 @@ const execAsync = promisify(exec)
 
 const globalForScheduler = globalThis as unknown as {
   aiAlarmSchedulerStarted?: boolean
+  aiAlarmSchedulerTask?: ReturnType<typeof cron.schedule>
 }
 
 const DEFAULT_CLAUDE_COMMAND = 'docker exec -i claude-cli claude -p "Say, hello"'
@@ -183,13 +184,39 @@ async function runDueAlarms() {
 
 export function startAiAlarmScheduler(): void {
   if (globalForScheduler.aiAlarmSchedulerStarted) return
-  globalForScheduler.aiAlarmSchedulerStarted = true
 
-  console.info('[ai-alarm] scheduler started')
-
-  cron.schedule('* * * * *', () => {
+  const task = cron.schedule('* * * * *', () => {
     void runDueAlarms().catch(() => {
       // Ignore scheduler errors to avoid crashing the server.
     })
   })
+
+  globalForScheduler.aiAlarmSchedulerStarted = true
+  globalForScheduler.aiAlarmSchedulerTask = task
+  console.info('[ai-alarm] scheduler started')
+}
+
+export async function stopAiAlarmScheduler(): Promise<void> {
+  const task = globalForScheduler.aiAlarmSchedulerTask
+  if (!task) {
+    globalForScheduler.aiAlarmSchedulerStarted = false
+    return
+  }
+
+  task.stop()
+  task.destroy()
+  globalForScheduler.aiAlarmSchedulerTask = undefined
+  globalForScheduler.aiAlarmSchedulerStarted = false
+  console.info('[ai-alarm] scheduler stopped')
+}
+
+export async function syncAiAlarmScheduler(): Promise<void> {
+  const enabledCount = await prisma.aiAlarm.count({ where: { isEnabled: true } })
+
+  if (enabledCount > 0) {
+    startAiAlarmScheduler()
+    return
+  }
+
+  await stopAiAlarmScheduler()
 }

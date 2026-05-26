@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { auth, signIn, signOut } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { consumeBackupCode, verifyTotpToken } from '@/lib/totp'
+import { BrandMark } from '@/components/ui/brand-mark'
 import type { SettingsData } from '@/types'
 
 function getSingleValue(value?: string | string[]): string | undefined {
@@ -159,7 +160,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-6 py-10">
       <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Magi</h1>
+        <BrandMark className="mb-1" />
         <p className="mt-2 text-sm text-zinc-600">
           {showTotpStep ? 'Verify the second factor to complete sign in.' : 'Sign in with the admin password.'}
         </p>

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { syncAiAlarmScheduler } from '@/lib/ai-alarm-scheduler'
 
 function normalizeTime(value: unknown): string | null {
   if (typeof value !== 'string') return null
@@ -106,6 +107,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     data,
   })
 
+  await syncAiAlarmScheduler()
+
   return NextResponse.json({ ok: true })
 }
 
@@ -121,6 +124,8 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   }
 
   await prisma.aiAlarm.delete({ where: { id } })
+
+  await syncAiAlarmScheduler()
 
   return NextResponse.json({ ok: true })
 }

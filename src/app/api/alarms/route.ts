@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { syncAiAlarmScheduler } from '@/lib/ai-alarm-scheduler'
 
 function normalizeTime(value: unknown): string | null {
   if (typeof value !== 'string') return null
@@ -105,6 +106,8 @@ export async function POST(request: Request) {
       runCodex: payload.runCodex === true,
     },
   })
+
+  await syncAiAlarmScheduler()
 
   return NextResponse.json({ id: created.id }, { status: 201 })
 }

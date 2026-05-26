@@ -4,7 +4,7 @@ import { auth, signOut } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { AppNav } from '@/components/ui/nav'
 import { HeaderModeSelect } from '@/components/ui/header-mode-select'
-import { startAiAlarmScheduler } from '@/lib/ai-alarm-scheduler'
+import { BrandMark } from '@/components/ui/brand-mark'
 
 function IconLogout() {
   return (
@@ -23,8 +23,6 @@ async function logoutAction(): Promise<void> {
 }
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  startAiAlarmScheduler()
-
   let session = null
   try {
     session = await auth()
@@ -52,7 +50,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/90 md:px-6">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">Magi</p>
+              <BrandMark />
               <div className="mt-1 w-48">
                 <HeaderModeSelect />
               </div>
