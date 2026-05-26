@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ServiceWorkerRegister } from '@/components/ui/sw-register'
+import { startAiAlarmScheduler } from '@/lib/ai-alarm-scheduler'
 import "./globals.css";
 
 const geistSans = Geist({
@@ -24,6 +25,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  startAiAlarmScheduler()
+
   return (
     <html
       lang="sk"
