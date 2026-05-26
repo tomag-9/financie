@@ -1,4 +1,5 @@
 import webpush from 'web-push'
+import { lookup } from 'node:dns/promises'
 import { prisma } from '@/lib/prisma'
 import type { PushSubscriptionData, SettingsData } from '@/types'
 
@@ -37,6 +38,7 @@ function ensureWebPushConfig(): boolean {
   if (!publicKey || !privateKey || !email) return false
 
   webpush.setVapidDetails(email, publicKey, privateKey)
+  console.info('[push] vapid config ok')
   return true
 }
 
@@ -67,34 +69,57 @@ export async function sendPushNotification(payload: { title: string; body: strin
   console.info('[push] send start')
   const configured = ensureWebPushConfig()
   if (!configured) {
-    console.warn('[push] missing VAPID configuration')
+    console.error('[push] missing VAPID configuration')
     return false
   }
+  console.info('[push] vapid config ok')
 
   const settings = await getSettingsData()
+  console.info('[push] settings loaded')
   const subscription = readSubscription(settings)
   if (!subscription) {
-    console.warn('[push] missing push subscription')
+    console.error('[push] missing push subscription')
     return false
   }
+  console.info('[push] subscription loaded')
 
   try {
+    const endpointUrl = new URL(subscription.endpoint)
+    console.info('[push] endpoint host', {
+      host: endpointUrl.host,
+      protocol: endpointUrl.protocol,
+    })
+
+    try {
+      await Promise.race([
+        lookup(endpointUrl.hostname),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('dns timeout')), 3_000)),
+      ])
+      console.info('[push] dns lookup ok', { host: endpointUrl.hostname })
+    } catch (dnsError) {
+      console.error('[push] dns lookup failed', {
+        host: endpointUrl.hostname,
+        error: dnsError instanceof Error ? dnsError.message : dnsError,
+      })
+      return false
+    }
+
     const payloadJson = JSON.stringify({
       title: payload.title,
       body: payload.body,
       url: payload.url ?? '/snapshots',
     })
 
-    await Promise.race([
-      webpush.sendNotification(subscription as webpush.PushSubscription, payloadJson),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('push timeout')), 10_000)),
-    ])
+    await webpush.sendNotification(subscription as webpush.PushSubscription, payloadJson, {
+      timeout: 10_000,
+    })
 
     console.info('[push] send ok')
     return true
   } catch (error) {
-    console.warn('[push] sendNotification failed', {
+    console.error('[push] sendNotification failed', {
       error: error instanceof Error ? error.message : error,
+      name: error instanceof Error ? error.name : 'UnknownError',
     })
     return false
   }
