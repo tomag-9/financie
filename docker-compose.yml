@@ -23,11 +23,14 @@ services:
       SEED_DATA_PASSWORD: ${SEED_DATA_PASSWORD:-}
       SEED_DATA_ENCODE_PASSWORD: ${SEED_DATA_ENCODE_PASSWORD:-}
       SEED_DATA_DECODE_PASSWORD: ${SEED_DATA_DECODE_PASSWORD:-}
-      CLAUDE_ALARM_COMMAND: ${CLAUDE_ALARM_COMMAND:-docker exec -i claude-cli claude -p "Say, hello"}
-      CODEX_ALARM_COMMAND: ${CODEX_ALARM_COMMAND:-docker exec -i codex-cli codex -p "Say, hello"}
+      CLAUDE_ALARM_COMMAND: ${CLAUDE_ALARM_COMMAND:-docker exec -i claude-cli claude "Say, hello"}
+      CODEX_ALARM_COMMAND: ${CODEX_ALARM_COMMAND:-docker exec -i codex-cli codex "Say, hello"}
+      - TZ=Europe/Bratislava
     volumes:
       - financie_data:/data
       - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=dokploy-network"

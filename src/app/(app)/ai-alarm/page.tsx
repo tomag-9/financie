@@ -46,18 +46,6 @@ function todayKey(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-function buildTimeOptions(stepMinutes: number): string[] {
-  const options: string[] = []
-  for (let hour = 0; hour < 24; hour += 1) {
-    for (let minute = 0; minute < 60; minute += stepMinutes) {
-      const hh = String(hour).padStart(2, '0')
-      const mm = String(minute).padStart(2, '0')
-      options.push(`${hh}:${mm}`)
-    }
-  }
-  return options
-}
-
 function Toggle({
   checked,
   onChange,
@@ -80,12 +68,14 @@ function Toggle({
     >
       <span
         className={`relative inline-flex h-4 w-7 items-center rounded-full transition ${
-          checked ? 'bg-white/30 dark:bg-zinc-900/20' : 'bg-zinc-300 dark:bg-zinc-700'
+          checked ? 'bg-zinc-900 dark:bg-zinc-100' : 'bg-zinc-300 dark:bg-zinc-700'
         }`}
         aria-hidden="true"
       >
         <span
-          className={`inline-block size-3 rounded-full bg-white shadow-sm transition ${checked ? 'translate-x-3' : 'translate-x-1'}`}
+          className={`inline-block size-3 rounded-full shadow-sm transition ${
+            checked ? 'translate-x-3 bg-white dark:bg-zinc-900' : 'translate-x-1 bg-zinc-300 dark:bg-zinc-700'
+          }`}
         />
       </span>
       {label}
@@ -99,7 +89,6 @@ export default function AiAlarmPage() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [serverTime, setServerTime] = useState<ServerTimePayload | null>(null)
-  const [isTimeOpen, setIsTimeOpen] = useState(false)
 
   const [form, setForm] = useState<AlarmPayload>({
     label: '',
@@ -113,7 +102,6 @@ export default function AiAlarmPage() {
   })
 
   const selectedDays = useMemo(() => new Set(form.days), [form.days])
-  const timeOptions = useMemo(() => buildTimeOptions(1), [])
 
   async function loadAlarms(options?: { silent?: boolean }) {
     if (!options?.silent) {
@@ -175,22 +163,6 @@ export default function AiAlarmPage() {
     }
   }, [])
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      const target = event.target as HTMLElement | null
-      if (!target?.closest('[data-time-picker]')) {
-        setIsTimeOpen(false)
-      }
-    }
-
-    if (isTimeOpen) {
-      window.addEventListener('click', handleClickOutside)
-    }
-
-    return () => {
-      window.removeEventListener('click', handleClickOutside)
-    }
-  }, [isTimeOpen])
 
   async function createAlarm() {
     setSaving(true)
@@ -287,41 +259,16 @@ export default function AiAlarmPage() {
             />
           </label>
 
-          <div className="space-y-2 text-sm text-zinc-700 dark:text-zinc-300" data-time-picker>
-            <span>Time</span>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsTimeOpen((prev) => !prev)}
-                className="flex w-full items-center justify-between rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 transition focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100"
-                aria-expanded={isTimeOpen}
-              >
-                <span>{form.time}</span>
-                <span className="text-xs text-zinc-400">24h</span>
-              </button>
-              {isTimeOpen ? (
-                <div className="absolute z-20 mt-2 max-h-56 w-full overflow-auto rounded-xl border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-800 dark:bg-zinc-950">
-                  {timeOptions.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => {
-                        setForm((prev) => ({ ...prev, time: option }))
-                        setIsTimeOpen(false)
-                      }}
-                      className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
-                        option === form.time
-                          ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                          : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900'
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </div>
+          <label className="space-y-2 text-sm text-zinc-700 dark:text-zinc-300">
+            Time
+            <input
+              type="time"
+              value={form.time}
+              onChange={(event) => setForm((prev) => ({ ...prev, time: event.target.value }))}
+              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100"
+              required
+            />
+          </label>
         </div>
 
         <div className="mt-4 grid gap-4 md:grid-cols-2">

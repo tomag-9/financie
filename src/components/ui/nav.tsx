@@ -78,6 +78,7 @@ function Icon({ path }: { path: string }) {
 
 export function AppNav({ hasJojAlert }: NavProps) {
   const pathname = usePathname()
+  const showBottomNav = !pathname.startsWith('/ai-alarm')
 
   const items: NavItem[] = useMemo(
     () => [
@@ -124,7 +125,8 @@ export function AppNav({ hasJojAlert }: NavProps) {
         </nav>
       </aside>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white/95 px-2 py-1 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 md:hidden">
+      {showBottomNav ? (
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white/95 px-2 py-1 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 md:hidden">
         <ul className="grid grid-cols-6 gap-1">
           {items.map((item) => {
             const active = isActivePath(pathname, item.href)
@@ -150,6 +152,7 @@ export function AppNav({ hasJojAlert }: NavProps) {
           })}
         </ul>
       </nav>
+      ) : null}
     </>
   )
 }
