@@ -64,6 +64,7 @@ export async function savePushSubscription(subscription: PushSubscriptionData | 
 }
 
 export async function sendPushNotification(payload: { title: string; body: string; url?: string }): Promise<boolean> {
+  console.info('[push] send start')
   const configured = ensureWebPushConfig()
   if (!configured) {
     console.warn('[push] missing VAPID configuration')
@@ -78,18 +79,23 @@ export async function sendPushNotification(payload: { title: string; body: strin
   }
 
   try {
-    await webpush.sendNotification(
-      subscription as webpush.PushSubscription,
-      JSON.stringify({
-        title: payload.title,
-        body: payload.body,
-        url: payload.url ?? '/snapshots',
-      }),
-    )
+    const payloadJson = JSON.stringify({
+      title: payload.title,
+      body: payload.body,
+      url: payload.url ?? '/snapshots',
+    })
 
+    await Promise.race([
+      webpush.sendNotification(subscription as webpush.PushSubscription, payloadJson),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('push timeout')), 10_000)),
+    ])
+
+    console.info('[push] send ok')
     return true
-  } catch {
-    console.warn('[push] sendNotification failed')
+  } catch (error) {
+    console.warn('[push] sendNotification failed', {
+      error: error instanceof Error ? error.message : error,
+    })
     return false
   }
 }
