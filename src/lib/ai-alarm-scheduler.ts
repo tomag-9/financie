@@ -130,11 +130,23 @@ async function runDueAlarms() {
       const title = alarm.label ? `Alarm: ${alarm.label}` : 'AI alarm ran'
       const body = `Alarm ran on ${targetLabel} at ${runTime}. Window closes at ${closeTime}.`
 
-      await sendPushNotification({
+      const pushOk = await sendPushNotification({
         title,
         body,
         url: '/ai-alarm',
       })
+
+      if (pushOk) {
+        console.info('[ai-alarm] push notification sent', {
+          alarmId: alarm.id,
+          label: alarm.label,
+        })
+      } else {
+        console.warn('[ai-alarm] push notification not sent', {
+          alarmId: alarm.id,
+          label: alarm.label,
+        })
+      }
 
       await prisma.aiAlarm.update({
         where: { id: alarm.id },

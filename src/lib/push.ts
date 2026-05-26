@@ -65,11 +65,17 @@ export async function savePushSubscription(subscription: PushSubscriptionData | 
 
 export async function sendPushNotification(payload: { title: string; body: string; url?: string }): Promise<boolean> {
   const configured = ensureWebPushConfig()
-  if (!configured) return false
+  if (!configured) {
+    console.warn('[push] missing VAPID configuration')
+    return false
+  }
 
   const settings = await getSettingsData()
   const subscription = readSubscription(settings)
-  if (!subscription) return false
+  if (!subscription) {
+    console.warn('[push] missing push subscription')
+    return false
+  }
 
   try {
     await webpush.sendNotification(
@@ -83,6 +89,7 @@ export async function sendPushNotification(payload: { title: string; body: strin
 
     return true
   } catch {
+    console.warn('[push] sendNotification failed')
     return false
   }
 }
