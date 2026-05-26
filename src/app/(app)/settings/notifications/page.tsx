@@ -22,6 +22,7 @@ export default function NotificationsPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [publicKey, setPublicKey] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -34,6 +35,18 @@ export default function NotificationsPage() {
           setLoading(false)
         }
         return
+      }
+
+      try {
+        const response = await fetch('/api/push/config')
+        if (response.ok) {
+          const payload = (await response.json()) as { publicKey?: string }
+          if (payload.publicKey) {
+            setPublicKey(payload.publicKey)
+          }
+        }
+      } catch {
+        // Ignore config fetch errors; user will see a message on enable.
       }
 
       const registration = await navigator.serviceWorker.ready
@@ -78,7 +91,7 @@ export default function NotificationsPage() {
         throw new Error('Notifications must be allowed in the browser.')
       }
 
-      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+      const vapidKey = publicKey
       if (!vapidKey) {
         throw new Error('Missing public VAPID key.')
       }

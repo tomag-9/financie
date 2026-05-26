@@ -56,6 +56,17 @@ async function runCommand(command: string): Promise<void> {
   await execAsync(command, { timeout: 120_000 })
 }
 
+function normalizeCommand(command: string): string {
+  const trimmed = command.trim()
+  if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    return trimmed.slice(1, -1)
+  }
+  if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
+    return trimmed.slice(1, -1)
+  }
+  return trimmed
+}
+
 async function runDueAlarms() {
   const now = new Date()
   const currentTime = timeKey(now)
@@ -101,7 +112,7 @@ async function runDueAlarms() {
       })
       try {
         didAttempt = true
-        await runCommand(command)
+        await runCommand(normalizeCommand(command))
       } catch (error) {
         console.error('[ai-alarm] command failed', {
           alarmId: alarm.id,
