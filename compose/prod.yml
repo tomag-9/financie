@@ -2,7 +2,7 @@ services:
   financie:
     build:
       context: ..
-      dockerfile: ../Dockerfile
+      dockerfile: Dockerfile
     container_name: financie-app
     restart: unless-stopped
     expose:
