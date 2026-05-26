@@ -211,6 +211,11 @@ export async function stopAiAlarmScheduler(): Promise<void> {
 }
 
 export async function syncAiAlarmScheduler(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.info('[ai-alarm] scheduler sync skipped: missing DATABASE_URL')
+    return
+  }
+
   const enabledCount = await prisma.aiAlarm.count({ where: { isEnabled: true } })
 
   if (enabledCount > 0) {
