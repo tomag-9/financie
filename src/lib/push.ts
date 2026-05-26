@@ -31,15 +31,40 @@ function readSubscription(data: SettingsData): PushSubscriptionData | null {
 }
 
 function ensureWebPushConfig(): boolean {
-  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-  const privateKey = process.env.VAPID_PRIVATE_KEY
-  const email = process.env.VAPID_EMAIL
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim()
+  const privateKey = process.env.VAPID_PRIVATE_KEY?.trim()
+  const email = process.env.VAPID_EMAIL?.trim()
 
-  if (!publicKey || !privateKey || !email) return false
+  if (!publicKey || !privateKey || !email) {
+    console.error('[push] missing VAPID env values', {
+      hasPublicKey: Boolean(publicKey),
+      hasPrivateKey: Boolean(privateKey),
+      hasEmail: Boolean(email),
+    })
+    return false
+  }
 
-  webpush.setVapidDetails(email, publicKey, privateKey)
-  console.info('[push] vapid config ok')
-  return true
+  const subject = email.startsWith('mailto:') || email.startsWith('https://') || email.startsWith('http://')
+    ? email
+    : `mailto:${email}`
+
+  try {
+    webpush.setVapidDetails(subject, publicKey, privateKey)
+    console.info('[push] vapid config ok', {
+      subject,
+      publicKeyLength: publicKey.length,
+      privateKeyLength: privateKey.length,
+    })
+    return true
+  } catch (error) {
+    console.error('[push] vapid config invalid', {
+      error: error instanceof Error ? error.message : error,
+      subject,
+      publicKeyLength: publicKey.length,
+      privateKeyLength: privateKey.length,
+    })
+    return false
+  }
 }
 
 export async function getSettingsData(): Promise<SettingsData> {
@@ -72,7 +97,6 @@ export async function sendPushNotification(payload: { title: string; body: strin
     console.error('[push] missing VAPID configuration')
     return false
   }
-  console.info('[push] vapid config ok')
 
   const settings = await getSettingsData()
   console.info('[push] settings loaded')
