@@ -22,14 +22,21 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('push', (event) => {
   if (!event.data) return
 
-  const payload = event.data.json()
-  const title = payload.title || 'Financie'
+  let payload = null
+  try {
+    payload = event.data.json()
+  } catch {
+    const text = event.data.text()
+    payload = { title: 'Financie', body: text, url: '/snapshots' }
+  }
+
+  const title = payload?.title || 'Financie'
   const options = {
-    body: payload.body || '',
+    body: payload?.body || '',
     icon: '/next.svg',
     badge: '/next.svg',
     data: {
-      url: payload.url || '/snapshots',
+      url: payload?.url || '/snapshots',
     },
   }
 
