@@ -70,6 +70,11 @@ async function runDueAlarms() {
     }
 
     for (const command of commands) {
+      console.info('[ai-alarm] sending command to container', {
+        alarmId: alarm.id,
+        label: alarm.label,
+        command,
+      })
       await runCommand(command)
     }
 
