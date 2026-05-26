@@ -26,6 +26,12 @@ type AlarmPayload = {
   runCodex: boolean
 }
 
+type ServerTimePayload = {
+  now: string
+  timeZone: string
+  location: string
+}
+
 const dayOptions = [
   { label: 'Mon', value: 1 },
   { label: 'Tue', value: 2 },
@@ -80,6 +86,7 @@ export default function AiAlarmPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [serverTime, setServerTime] = useState<ServerTimePayload | null>(null)
 
   const [form, setForm] = useState<AlarmPayload>({
     label: '',
@@ -114,6 +121,30 @@ export default function AiAlarmPage() {
 
   useEffect(() => {
     void loadAlarms()
+  }, [])
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadServerTime() {
+      try {
+        const response = await fetch('/api/alarms/time')
+        if (!response.ok) return
+        const payload = (await response.json()) as ServerTimePayload
+        if (isMounted) {
+          setServerTime(payload)
+        }
+      } catch {
+        // Ignore server time fetch errors.
+      }
+    }
+
+    void loadServerTime()
+    const interval = window.setInterval(loadServerTime, 30_000)
+    return () => {
+      isMounted = false
+      window.clearInterval(interval)
+    }
   }, [])
 
   async function createAlarm() {
@@ -180,6 +211,20 @@ export default function AiAlarmPage() {
         <div>
           <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">AI Alarm</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">Schedule Claude or Codex runs from Docker.</p>
+        </div>
+        <div className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold text-zinc-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
+          {serverTime
+            ? `Server time (${serverTime.location}) · ${new Date(serverTime.now).toLocaleString('sk-SK', {
+                timeZone: serverTime.timeZone,
+                hour12: false,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+              })}`
+            : 'Loading server time...'}
         </div>
       </div>
 
@@ -353,7 +398,19 @@ export default function AiAlarmPage() {
                 </div>
 
                 <div className="mt-3 text-xs text-zinc-500">
-                  Last run: {alarm.lastTriggeredAt ? new Date(alarm.lastTriggeredAt).toLocaleString() : 'Never'}
+                  Last run:{' '}
+                  {alarm.lastTriggeredAt
+                    ? new Date(alarm.lastTriggeredAt).toLocaleString('sk-SK', {
+                        timeZone: serverTime?.timeZone ?? 'Europe/Bratislava',
+                        hour12: false,
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                      })
+                    : 'Never'}
                 </div>
               </div>
             ))}

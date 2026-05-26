@@ -50,6 +50,12 @@ async function runDueAlarms() {
     },
   })
 
+  console.info('[ai-alarm] tick', {
+    now: now.toISOString(),
+    currentTime,
+    dueCount: alarms.length,
+  })
+
   for (const alarm of alarms) {
     if (wasTriggeredThisMinute(alarm.lastTriggeredAt, now)) continue
     if (!alarm.runClaude && !alarm.runCodex) continue
@@ -69,28 +75,43 @@ async function runDueAlarms() {
       commands.push(process.env.CODEX_ALARM_COMMAND ?? DEFAULT_CODEX_COMMAND)
     }
 
+    let didAttempt = false
     for (const command of commands) {
       console.info('[ai-alarm] sending command to container', {
         alarmId: alarm.id,
         label: alarm.label,
         command,
       })
-      await runCommand(command)
+      try {
+        didAttempt = true
+        await runCommand(command)
+      } catch (error) {
+        console.error('[ai-alarm] command failed', {
+          alarmId: alarm.id,
+          label: alarm.label,
+          command,
+          error: error instanceof Error ? error.message : error,
+        })
+      }
     }
 
-    await prisma.aiAlarm.update({
-      where: { id: alarm.id },
-      data: {
-        lastTriggeredAt: now,
-        isEnabled: alarm.isRepeat ? alarm.isEnabled : false,
-      },
-    })
+    if (didAttempt) {
+      await prisma.aiAlarm.update({
+        where: { id: alarm.id },
+        data: {
+          lastTriggeredAt: now,
+          isEnabled: alarm.isRepeat ? alarm.isEnabled : false,
+        },
+      })
+    }
   }
 }
 
 export function startAiAlarmScheduler(): void {
   if (globalForScheduler.aiAlarmSchedulerStarted) return
   globalForScheduler.aiAlarmSchedulerStarted = true
+
+  console.info('[ai-alarm] scheduler started')
 
   cron.schedule('* * * * *', () => {
     void runDueAlarms().catch(() => {
