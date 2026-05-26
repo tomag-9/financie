@@ -124,11 +124,21 @@ async function runDueAlarms() {
     }
 
     if (didAttempt) {
+      console.info('[ai-alarm] commands completed', {
+        alarmId: alarm.id,
+        label: alarm.label,
+      })
+
       const runTime = formatBratislavaTime(now)
       const closeTime = formatBratislavaTime(new Date(now.getTime() + 5 * 60 * 60 * 1000))
       const targetLabel = buildTargetLabel(alarm.runClaude, alarm.runCodex)
       const title = alarm.label ? `Alarm: ${alarm.label}` : 'AI alarm ran'
       const body = `Alarm ran on ${targetLabel} at ${runTime}. Window closes at ${closeTime}.`
+
+      console.info('[ai-alarm] sending push notification', {
+        alarmId: alarm.id,
+        label: alarm.label,
+      })
 
       const pushOk = await sendPushNotification({
         title,
@@ -148,13 +158,25 @@ async function runDueAlarms() {
         })
       }
 
-      await prisma.aiAlarm.update({
-        where: { id: alarm.id },
-        data: {
-          lastTriggeredAt: now,
-          isEnabled: alarm.isRepeat ? alarm.isEnabled : false,
-        },
-      })
+      try {
+        await prisma.aiAlarm.update({
+          where: { id: alarm.id },
+          data: {
+            lastTriggeredAt: now,
+            isEnabled: alarm.isRepeat ? alarm.isEnabled : false,
+          },
+        })
+        console.info('[ai-alarm] alarm updated', {
+          alarmId: alarm.id,
+          label: alarm.label,
+        })
+      } catch (error) {
+        console.error('[ai-alarm] failed to update alarm', {
+          alarmId: alarm.id,
+          label: alarm.label,
+          error: error instanceof Error ? error.message : error,
+        })
+      }
     }
   }
 }
