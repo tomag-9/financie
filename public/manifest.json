@@ -1,6 +1,6 @@
 {
-  "name": "Financie",
-  "short_name": "Financie",
+  "name": "Magi",
+  "short_name": "Magi",
   "description": "Osobný finančný prehľad",
   "start_url": "/dashboard",
   "scope": "/",
@@ -10,7 +10,7 @@
   "lang": "sk-SK",
   "icons": [
     {
-      "src": "/next.svg",
+      "src": "/tomag-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"

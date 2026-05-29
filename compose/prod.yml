@@ -10,7 +10,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: file:/data/financie.db
-      NEXTAUTH_URL: https://finance.tomag.xyz
+      NEXTAUTH_URL: https://magi.tomag.xyz
       AUTH_TRUST_HOST: "true"
       AUTH_SECRET: ${AUTH_SECRET}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
@@ -34,10 +34,10 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=dokploy-network"
-      - "traefik.http.routers.financie-http.rule=Host(`finance.tomag.xyz`)"
+      - "traefik.http.routers.financie-http.rule=Host(`magi.tomag.xyz`)"
       - "traefik.http.routers.financie-http.entrypoints=web"
       - "traefik.http.routers.financie-http.service=financie"
-      - "traefik.http.routers.financie-https.rule=Host(`finance.tomag.xyz`)"
+      - "traefik.http.routers.financie-https.rule=Host(`magi.tomag.xyz`)"
       - "traefik.http.routers.financie-https.entrypoints=websecure"
       - "traefik.http.routers.financie-https.tls=true"
       - "traefik.http.routers.financie-https.tls.certresolver=letsencrypt"
