@@ -14,7 +14,7 @@ export function SnapshotMonthPicker({ value }: SnapshotMonthPickerProps) {
     <MonthPicker
       value={value}
       onChange={(month) => {
-        router.push(`/snapshots/${month}`)
+        router.push(`/finance/snapshots/${month}`)
       }}
       className="w-full sm:w-[22rem]"
     />

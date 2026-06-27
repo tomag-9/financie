@@ -175,7 +175,7 @@ export default async function MonthSnapshotsPage({ params }: MonthSnapshotsPageP
 
   const monthDate = parseMonthToUtcDate(monthParam)
   if (!monthDate) {
-    redirect(`/snapshots/${toMonthKeyInUtc(new Date())}`)
+    redirect(`/finance/snapshots/${toMonthKeyInUtc(new Date())}`)
   }
 
   const monthKey = toMonthKeyInUtc(monthDate)

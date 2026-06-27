@@ -31,7 +31,8 @@ function isFinancePath(pathname: string): boolean {
     pathname.startsWith('/finance/income') ||
     pathname.startsWith('/finance/investments') ||
     pathname.startsWith('/finance/liabilities') ||
-    pathname.startsWith('/finance/accounts')
+    pathname.startsWith('/finance/accounts') ||
+    pathname.startsWith('/snapshots')
   )
 }
 

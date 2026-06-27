@@ -9,12 +9,9 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
-    "db:seed": "prisma db seed",
+    "db:seed": "tsx prisma/seed.ts",
     "seed:encrypt": "tsx scripts/encrypt-seed-file.ts",
     "seed:decrypt": "tsx scripts/decrypt-seed-file.ts"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.16.3",

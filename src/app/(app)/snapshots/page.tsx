@@ -21,10 +21,10 @@ export default async function SnapshotsIndexPage({ searchParams }: SnapshotsInde
   const requestedMonth = params.month
 
   if (isValidMonthKey(requestedMonth)) {
-    redirect(`/snapshots/${requestedMonth}`)
+    redirect(`/finance/snapshots/${requestedMonth}`)
   }
 
   const now = new Date()
   const currentMonth = toMonthKeyInUtc(now)
-  redirect(`/snapshots/${currentMonth}`)
+  redirect(`/finance/snapshots/${currentMonth}`)
 }
