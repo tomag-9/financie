@@ -1,6 +1,8 @@
 import { LogsPanel } from '@/components/dashboard/LogsPanel'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 function toRecord(value: unknown): Record<string, unknown> | null {
   if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
     return value as Record<string, unknown>
