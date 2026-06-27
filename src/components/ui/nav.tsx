@@ -19,8 +19,20 @@ type NavItem = {
 const THEME_CHANGE_EVENT = 'financie-theme-change'
 
 function isActivePath(pathname: string, href: string): boolean {
-  if (href === '/dashboard') return pathname === '/dashboard'
+  if (href === '/finance/dashboard') return pathname === '/finance/dashboard'
   return pathname === href || pathname.startsWith(`${href}/`)
+}
+
+function isFinancePath(pathname: string): boolean {
+  return (
+    pathname === '/finance' ||
+    pathname === '/finance/dashboard' ||
+    pathname.startsWith('/finance/snapshots') ||
+    pathname.startsWith('/finance/income') ||
+    pathname.startsWith('/finance/investments') ||
+    pathname.startsWith('/finance/liabilities') ||
+    pathname.startsWith('/finance/accounts')
+  )
 }
 
 function ThemeToggle() {
@@ -79,19 +91,22 @@ function Icon({ path }: { path: string }) {
 
 export function AppNav({ hasJojAlert }: NavProps) {
   const pathname = usePathname()
-  const showBottomNav = !pathname.startsWith('/ai-alarm')
+  const showFinanceNav = isFinancePath(pathname)
 
   const items: NavItem[] = useMemo(
     () => [
-      { href: '/dashboard', label: 'Dashboard', icon: 'M3 12h18M12 3v18' },
-      { href: '/snapshots', label: 'Snapshots', icon: 'M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z' },
-      { href: '/income', label: 'Income', icon: 'M4 14l4-4 3 3 5-6 4 4', showBadge: hasJojAlert },
-      { href: '/investments', label: 'Investments', icon: 'M3 17l6-6 4 4 8-8' },
-      { href: '/liabilities', label: 'Liabilities', icon: 'M4 12h16M12 4v16' },
-      { href: '/settings', label: 'Settings', icon: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm8 4-2.2.7a6.8 6.8 0 0 1-.4 1l1.3 1.9-1.9 1.9-1.9-1.3a6.8 6.8 0 0 1-1 .4L12 20l-2.7-2.2a6.8 6.8 0 0 1-1-.4l-1.9 1.3-1.9-1.9 1.3-1.9a6.8 6.8 0 0 1-.4-1L4 12l2.2-.7a6.8 6.8 0 0 1 .4-1L5.3 8.4l1.9-1.9 1.9 1.3a6.8 6.8 0 0 1 1-.4L12 4l2.7 2.2a6.8 6.8 0 0 1 1 .4l1.9-1.3 1.9 1.9-1.3 1.9c.17.33.3.67.4 1L20 12Z' },
+      { href: '/finance/dashboard', label: 'Dashboard', icon: 'M3 12h18M12 3v18' },
+      { href: '/finance/snapshots', label: 'Snapshots', icon: 'M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z' },
+      { href: '/finance/income', label: 'Income', icon: 'M4 14l4-4 3 3 5-6 4 4', showBadge: hasJojAlert },
+      { href: '/finance/investments', label: 'Investments', icon: 'M3 17l6-6 4 4 8-8' },
+      { href: '/finance/liabilities', label: 'Liabilities', icon: 'M4 12h16M12 4v16' },
     ],
     [hasJojAlert]
   )
+
+  if (!showFinanceNav) {
+    return null
+  }
 
   return (
     <>
@@ -126,9 +141,9 @@ export function AppNav({ hasJojAlert }: NavProps) {
         </nav>
       </aside>
 
-      {showBottomNav ? (
+      {showFinanceNav ? (
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white/95 px-2 py-1 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 md:hidden">
-        <ul className="grid grid-cols-6 gap-1">
+        <ul className="grid grid-cols-5 gap-1">
           {items.map((item) => {
             const active = isActivePath(pathname, item.href)
             return (

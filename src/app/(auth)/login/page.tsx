@@ -16,8 +16,8 @@ function getSingleValue(value?: string | string[]): string | undefined {
 }
 
 function resolveCallbackUrl(input?: string): string {
-  if (!input) return '/dashboard'
-  if (!input.startsWith('/')) return '/dashboard'
+  if (!input) return '/home'
+  if (!input.startsWith('/')) return '/home'
   return input
 }
 
@@ -25,7 +25,7 @@ async function passwordLoginAction(formData: FormData): Promise<void> {
   'use server'
 
   const password = String(formData.get('password') ?? '')
-  const callbackUrl = resolveCallbackUrl(String(formData.get('callbackUrl') ?? '/dashboard'))
+  const callbackUrl = resolveCallbackUrl(String(formData.get('callbackUrl') ?? '/home'))
 
   if (!password.trim()) {
     redirect(`/login?error=missing_password&callbackUrl=${encodeURIComponent(callbackUrl)}`)
@@ -58,11 +58,11 @@ async function verifyTotpAction(formData: FormData): Promise<void> {
   }
 
   if (!session.totpRequired) {
-    redirect('/dashboard')
+    redirect('/home')
   }
 
   const code = String(formData.get('code') ?? '').trim()
-  const callbackUrl = resolveCallbackUrl(String(formData.get('callbackUrl') ?? '/dashboard'))
+  const callbackUrl = resolveCallbackUrl(String(formData.get('callbackUrl') ?? '/home'))
   if (!code) {
     redirect(`/login?step=totp&error=missing_code&callbackUrl=${encodeURIComponent(callbackUrl)}`)
   }
@@ -144,7 +144,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const needsTotp = Boolean(session?.totpRequired) && !totpVerified
 
   if (session && !needsTotp) {
-    redirect('/dashboard')
+    redirect('/home')
   }
 
   const showTotpStep = needsTotp || requestedStep === 'totp'

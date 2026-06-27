@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "predev": "prisma migrate deploy",
+    "dev": "next dev -p 6001",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "postinstall": "prisma generate",
     "db:seed": "prisma db seed",
     "seed:encrypt": "tsx scripts/encrypt-seed-file.ts",
     "seed:decrypt": "tsx scripts/decrypt-seed-file.ts"

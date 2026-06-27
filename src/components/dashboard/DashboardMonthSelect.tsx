@@ -19,7 +19,7 @@ export function DashboardMonthSelect({ selectedMonthKey }: DashboardMonthSelectP
     <MonthPicker
       value={selectedMonthKey}
       onChange={(month) => {
-        router.push(`/dashboard?month=${month}`)
+        router.push(`/finance/dashboard?month=${month}`)
       }}
       className="w-full sm:w-[22rem]"
     />

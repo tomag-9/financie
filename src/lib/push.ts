@@ -76,6 +76,25 @@ export async function getSettingsData(): Promise<SettingsData> {
   return toRecord(settings?.data) as SettingsData
 }
 
+export function getAiAlarmSuccessPushEnabled(data: SettingsData): boolean {
+  const value = data.ai_alarm_success_push_enabled ?? data.aiAlarmSuccessPushEnabled
+  return value !== false
+}
+
+export async function saveAiAlarmSuccessPushEnabled(enabled: boolean): Promise<void> {
+  const settings = await getSettingsData()
+  const nextData: SettingsData = {
+    ...settings,
+    ai_alarm_success_push_enabled: enabled,
+  }
+
+  await prisma.settings.upsert({
+    where: { id: 'singleton' },
+    update: { data: nextData as object },
+    create: { id: 'singleton', data: nextData as object },
+  })
+}
+
 export async function savePushSubscription(subscription: PushSubscriptionData | null): Promise<void> {
   const settings = await getSettingsData()
   const nextData: SettingsData = {

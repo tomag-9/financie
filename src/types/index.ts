@@ -66,6 +66,8 @@ export interface SettingsData {
   backupCodes?: string[]
   push_subscription?: PushSubscriptionData
   pushSubscription?: PushSubscriptionData
+  ai_alarm_success_push_enabled?: boolean
+  aiAlarmSuccessPushEnabled?: boolean
   savings_goal_pct?: number      // default 20
   savingsTarget?: number
   market_cache?: MarketCache

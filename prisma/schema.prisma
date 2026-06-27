@@ -116,6 +116,19 @@ model Settings {
   data Json
 }
 
+model AppLog {
+  id        String   @id @default(cuid())
+  source    String
+  level     String
+  message   String
+  details   Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([source, createdAt])
+  @@index([level, createdAt])
+}
+
 model AiAlarm {
   id              String   @id @default(cuid())
   label           String?

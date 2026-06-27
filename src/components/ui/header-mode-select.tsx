@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 type ModeOption = {
   label: string
-  value: 'finance' | 'ai-alarm'
+  value: 'finance' | 'ai-runner'
   href: string
 }
 
@@ -17,13 +17,13 @@ export function HeaderModeSelect() {
 
   const options = useMemo<ModeOption[]>(
     () => [
-      { label: 'AI Alarm', value: 'ai-alarm', href: '/ai-alarm' },
-      { label: 'Finance', value: 'finance', href: '/dashboard' },
+      { label: 'AI Runner', value: 'ai-runner', href: '/ai-runner' },
+      { label: 'Finance', value: 'finance', href: '/finance/dashboard' },
     ],
     []
   )
 
-  const current = pathname.startsWith('/ai-alarm') ? 'ai-alarm' : 'finance'
+  const current = pathname.startsWith('/ai-runner') ? 'ai-runner' : 'finance'
   const currentLabel = options.find((option) => option.value === current)?.label ?? 'Finance'
 
   useEffect(() => {

@@ -32,7 +32,7 @@ export default auth((req) => {
     if (totpRequired && !totpVerified) {
       return NextResponse.next()
     }
-    return NextResponse.redirect(new URL('/dashboard', req.url))
+    return NextResponse.redirect(new URL('/home', req.url))
   }
 
   return NextResponse.next()
