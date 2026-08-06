@@ -81,11 +81,30 @@ export function getAiAlarmSuccessPushEnabled(data: SettingsData): boolean {
   return value !== false
 }
 
+export function getAiAlarmErrorPushEnabled(data: SettingsData): boolean {
+  const value = data.ai_alarm_error_push_enabled ?? data.aiAlarmErrorPushEnabled
+  return value === true
+}
+
 export async function saveAiAlarmSuccessPushEnabled(enabled: boolean): Promise<void> {
   const settings = await getSettingsData()
   const nextData: SettingsData = {
     ...settings,
     ai_alarm_success_push_enabled: enabled,
+  }
+
+  await prisma.settings.upsert({
+    where: { id: 'singleton' },
+    update: { data: nextData as object },
+    create: { id: 'singleton', data: nextData as object },
+  })
+}
+
+export async function saveAiAlarmErrorPushEnabled(enabled: boolean): Promise<void> {
+  const settings = await getSettingsData()
+  const nextData: SettingsData = {
+    ...settings,
+    ai_alarm_error_push_enabled: enabled,
   }
 
   await prisma.settings.upsert({

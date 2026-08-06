@@ -1,6 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { auth } from '@/lib/auth'
-import { getAiAlarmSuccessPushEnabled, getSettingsData, saveAiAlarmSuccessPushEnabled } from '@/lib/push'
+import {
+  getAiAlarmErrorPushEnabled,
+  getAiAlarmSuccessPushEnabled,
+  getSettingsData,
+  saveAiAlarmErrorPushEnabled,
+  saveAiAlarmSuccessPushEnabled,
+} from '@/lib/push'
 
 export const runtime = 'nodejs'
 
@@ -24,6 +30,7 @@ export async function GET() {
 
   return NextResponse.json({
     aiAlarmSuccessPushEnabled: getAiAlarmSuccessPushEnabled(settings),
+    aiAlarmErrorPushEnabled: getAiAlarmErrorPushEnabled(settings),
   })
 }
 
@@ -41,12 +48,19 @@ export async function PATCH(request: NextRequest) {
   }
 
   const payload = (body ?? {}) as Record<string, unknown>
-  const enabled = normalizeEnabled(payload.enabled ?? payload.aiAlarmSuccessPushEnabled)
+  const preference = payload.preference === 'error' ? 'error' : 'success'
+  const enabled = normalizeEnabled(
+    payload.enabled ?? (preference === 'error' ? payload.aiAlarmErrorPushEnabled : payload.aiAlarmSuccessPushEnabled),
+  )
   if (enabled === null) {
-    return NextResponse.json({ error: 'Invalid enabled flag.' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid notification preference.' }, { status: 400 })
   }
 
-  await saveAiAlarmSuccessPushEnabled(enabled)
+  if (preference === 'error') {
+    await saveAiAlarmErrorPushEnabled(enabled)
+  } else {
+    await saveAiAlarmSuccessPushEnabled(enabled)
+  }
 
-  return NextResponse.json({ ok: true, aiAlarmSuccessPushEnabled: enabled })
+  return NextResponse.json({ ok: true, preference, enabled })
 }

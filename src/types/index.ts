@@ -68,6 +68,8 @@ export interface SettingsData {
   pushSubscription?: PushSubscriptionData
   ai_alarm_success_push_enabled?: boolean
   aiAlarmSuccessPushEnabled?: boolean
+  ai_alarm_error_push_enabled?: boolean
+  aiAlarmErrorPushEnabled?: boolean
   savings_goal_pct?: number      // default 20
   savingsTarget?: number
   market_cache?: MarketCache

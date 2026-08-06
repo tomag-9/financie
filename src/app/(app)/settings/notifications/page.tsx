@@ -19,6 +19,7 @@ export default function NotificationsPage() {
   const [permission, setPermission] = useState<NotificationPermission>('default')
   const [subscribed, setSubscribed] = useState(false)
   const [aiAlarmSuccessPushEnabled, setAiAlarmSuccessPushEnabled] = useState(true)
+  const [aiAlarmErrorPushEnabled, setAiAlarmErrorPushEnabled] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [preferenceSaving, setPreferenceSaving] = useState(false)
@@ -56,9 +57,15 @@ export default function NotificationsPage() {
       try {
         const response = await fetch('/api/push/preferences')
         if (response.ok) {
-          const payload = (await response.json()) as { aiAlarmSuccessPushEnabled?: boolean }
+          const payload = (await response.json()) as {
+            aiAlarmSuccessPushEnabled?: boolean
+            aiAlarmErrorPushEnabled?: boolean
+          }
           if (typeof payload.aiAlarmSuccessPushEnabled === 'boolean') {
             setAiAlarmSuccessPushEnabled(payload.aiAlarmSuccessPushEnabled)
+          }
+          if (typeof payload.aiAlarmErrorPushEnabled === 'boolean') {
+            setAiAlarmErrorPushEnabled(payload.aiAlarmErrorPushEnabled)
           }
         }
       } catch {
@@ -138,7 +145,7 @@ export default function NotificationsPage() {
     }
   }
 
-  async function updateAiAlarmSuccessPushEnabled(nextEnabled: boolean) {
+  async function updateAiAlarmPushEnabled(preference: 'success' | 'error', nextEnabled: boolean) {
     setPreferenceSaving(true)
     setError(null)
     setMessage(null)
@@ -147,7 +154,7 @@ export default function NotificationsPage() {
       const response = await fetch('/api/push/preferences', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: nextEnabled }),
+        body: JSON.stringify({ preference, enabled: nextEnabled }),
       })
 
       const data = (await response.json()) as { error?: string }
@@ -155,8 +162,12 @@ export default function NotificationsPage() {
         throw new Error(data.error ?? 'Failed to update notification preference.')
       }
 
-      setAiAlarmSuccessPushEnabled(nextEnabled)
-      setMessage(nextEnabled ? 'AI timer success push is enabled.' : 'AI timer success push is disabled.')
+      if (preference === 'error') {
+        setAiAlarmErrorPushEnabled(nextEnabled)
+      } else {
+        setAiAlarmSuccessPushEnabled(nextEnabled)
+      }
+      setMessage(`AI timer ${preference} push is ${nextEnabled ? 'enabled' : 'disabled'}.`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update notification preference.')
     } finally {
@@ -236,12 +247,12 @@ export default function NotificationsPage() {
               <div>
                 <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">AI timer success push</p>
                 <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-                  Successful Claude timer runs can notify you. Error pushes stay on.
+                  Successful AI timer runs can notify you.
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => void updateAiAlarmSuccessPushEnabled(!aiAlarmSuccessPushEnabled)}
+                onClick={() => void updateAiAlarmPushEnabled('success', !aiAlarmSuccessPushEnabled)}
                 disabled={saving || preferenceSaving || loading}
                 className={`rounded-full border px-3 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
                   aiAlarmSuccessPushEnabled
@@ -251,6 +262,30 @@ export default function NotificationsPage() {
                 aria-pressed={aiAlarmSuccessPushEnabled}
               >
                 {preferenceSaving ? 'Saving…' : aiAlarmSuccessPushEnabled ? 'On' : 'Off'}
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950/70">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">AI timer error push</p>
+                <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+                  Notify when an AI command or scheduler tick fails. Off by default.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void updateAiAlarmPushEnabled('error', !aiAlarmErrorPushEnabled)}
+                disabled={saving || preferenceSaving || loading}
+                className={`rounded-full border px-3 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                  aiAlarmErrorPushEnabled
+                    ? 'border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900'
+                    : 'border-zinc-300 bg-white text-zinc-700 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300'
+                }`}
+                aria-pressed={aiAlarmErrorPushEnabled}
+              >
+                {preferenceSaving ? 'Saving…' : aiAlarmErrorPushEnabled ? 'On' : 'Off'}
               </button>
             </div>
           </div>
@@ -274,7 +309,7 @@ export default function NotificationsPage() {
             <li>1. The browser asks for notification permission.</li>
             <li>2. Your subscription is stored in Settings via <code className="rounded bg-zinc-100 px-1 py-0.5 dark:bg-zinc-800">/api/push</code>.</li>
             <li>3. The AI timer can optionally send a success push after a successful run.</li>
-            <li>4. If the AI timer errors, you will still get a push with a log check reminder.</li>
+            <li>4. Error pushes have a separate switch and are off by default.</li>
             <li>5. Tapping the notification opens the AI alarm screen.</li>
           </ul>
         </article>

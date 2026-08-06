@@ -3,7 +3,12 @@ import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { getAiAlarmSuccessPushEnabled, getSettingsData, sendPushNotification } from '@/lib/push'
+import {
+  getAiAlarmErrorPushEnabled,
+  getAiAlarmSuccessPushEnabled,
+  getSettingsData,
+  sendPushNotification,
+} from '@/lib/push'
 
 const execAsync = promisify(exec)
 
@@ -153,6 +158,7 @@ async function runDueAlarms() {
   const now = new Date()
   const settings = await getSettingsData()
   const successPushEnabled = getAiAlarmSuccessPushEnabled(settings)
+  const errorPushEnabled = getAiAlarmErrorPushEnabled(settings)
 
   const { start, end } = getTickWindow(now)
   const minutes = minutesBetween(start, end)
@@ -288,7 +294,7 @@ async function runDueAlarms() {
           const title = alarm.label ? `AI alarm error: ${alarm.label}` : 'AI alarm error'
           const body = `Alarm failed on ${targetLabel}. Check logs.`
 
-          console.info('[ai-alarm] sending error push notification', {
+          console.info('[ai-alarm] command errors recorded', {
             alarmId: alarm.id,
             label: alarm.label,
             errors: commandErrors.length,
@@ -305,41 +311,48 @@ async function runDueAlarms() {
             },
           })
 
-          const pushOk = await sendPushNotification({
-            title,
-            body,
-            url: '/ai-runner',
-          })
+          if (errorPushEnabled) {
+            const pushOk = await sendPushNotification({
+              title,
+              body,
+              url: '/ai-runner',
+            })
 
-          if (pushOk) {
-            console.info('[ai-alarm] error push notification sent', {
-              alarmId: alarm.id,
-              label: alarm.label,
-            })
-            await recordAppLog({
-              level: 'warn',
-              message: 'Error push sent',
-              details: {
+            if (pushOk) {
+              console.info('[ai-alarm] error push notification sent', {
                 alarmId: alarm.id,
                 label: alarm.label,
-                minute: minute.toISOString(),
-                targetLabel,
-              },
-            })
+              })
+              await recordAppLog({
+                level: 'warn',
+                message: 'Error push sent',
+                details: {
+                  alarmId: alarm.id,
+                  label: alarm.label,
+                  minute: minute.toISOString(),
+                  targetLabel,
+                },
+              })
+            } else {
+              console.warn('[ai-alarm] error push notification not sent', {
+                alarmId: alarm.id,
+                label: alarm.label,
+              })
+              await recordAppLog({
+                level: 'warn',
+                message: 'Error push not sent',
+                details: {
+                  alarmId: alarm.id,
+                  label: alarm.label,
+                  minute: minute.toISOString(),
+                  targetLabel,
+                },
+              })
+            }
           } else {
-            console.warn('[ai-alarm] error push notification not sent', {
+            console.info('[ai-alarm] error push disabled', {
               alarmId: alarm.id,
               label: alarm.label,
-            })
-            await recordAppLog({
-              level: 'warn',
-              message: 'Error push not sent',
-              details: {
-                alarmId: alarm.id,
-                label: alarm.label,
-                minute: minute.toISOString(),
-                targetLabel,
-              },
             })
           }
         }
@@ -421,15 +434,18 @@ export function startAiAlarmScheduler(): void {
       })
 
       try {
-        await sendPushNotification({
-          title: 'AI alarm error',
-          body: 'AI timer crashed. Check logs.',
-          url: '/ai-runner',
-        })
-        await recordAppLog({
-          level: 'warn',
-          message: 'Scheduler error push sent',
-        })
+        const settings = await getSettingsData()
+        if (getAiAlarmErrorPushEnabled(settings)) {
+          await sendPushNotification({
+            title: 'AI alarm error',
+            body: 'AI timer crashed. Check logs.',
+            url: '/ai-runner',
+          })
+          await recordAppLog({
+            level: 'warn',
+            message: 'Scheduler error push sent',
+          })
+        }
       } catch (pushError) {
         console.error('[ai-alarm] failed to send scheduler error push', {
           error: pushError instanceof Error ? pushError.message : pushError,
