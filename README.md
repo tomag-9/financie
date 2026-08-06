@@ -113,3 +113,21 @@ npm run lint
 npm run build
 npx prisma studio
 ```
+## Proxmox ovládanie
+
+Sekcia `/proxmox` zobrazuje stav a umožňuje spustiť, reštartovať alebo okamžite zastaviť iba LXC kontajnery uvedené v `PROXMOX_ALLOWED_CTS` (predvolene `101,103`). Volania idú zo serverovej časti aplikácie; API token sa neposiela do prehliadača.
+
+V Proxmoxe vytvor samostatného používateľa a rolu iba s oprávneniami `VM.Audit` a `VM.PowerMgmt`. Rolu priraď na cesty `/vms/101` a `/vms/103`, potom používateľovi vytvor API token. Pri zapnutej voľbe Privilege Separation treba rovnakú rolu na týchto cestách priradiť aj priamo tokenu.
+
+Do produkčného `.env` nastav:
+
+```env
+PROXMOX_URL=https://192.168.1.10:8006
+PROXMOX_NODE=pve
+PROXMOX_TOKEN_ID=financie@pve!financie
+PROXMOX_TOKEN_SECRET=...
+PROXMOX_ALLOWED_CTS=101,103
+PROXMOX_TLS_REJECT_UNAUTHORIZED=true
+```
+
+Pri self-signed Proxmox certifikáte možno na dôveryhodnej lokálnej sieti nastaviť `PROXMOX_TLS_REJECT_UNAUTHORIZED=false`. Lepšie riešenie je dôveryhodný certifikát a ponechanie kontroly na `true`. Kontajner s appkou musí vedieť sieťovo dosiahnuť `PROXMOX_URL` na porte 8006.

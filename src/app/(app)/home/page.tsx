@@ -31,6 +31,13 @@ const hubCards: HubCard[] = [
     iconPath: 'M7 4h10l3 4v12H4V4h3Zm0 0v4h10V4M8 12h8M8 16h5',
   },
   {
+    href: '/proxmox',
+    title: 'Proxmox',
+    description: 'Stav, štart, reštart a zastavenie LXC kontajnerov.',
+    accent: 'from-violet-500/20 via-violet-500/10 to-transparent dark:from-violet-400/20',
+    iconPath: 'M5 3h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 9h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2Zm2-5h.01M7 16h.01M11 7h7M11 16h7',
+  },
+  {
     href: '/settings',
     title: 'Settings',
     description: 'Notifikácie, TOTP a systémové nastavenia.',
@@ -64,11 +71,11 @@ export default function HomePage() {
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500 dark:text-zinc-400">Start</p>
         <h2 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-3xl">Vyber si sekciu</h2>
         <p className="max-w-2xl text-sm text-zinc-600 dark:text-zinc-300">
-          Po prihlásení je tu len rýchly výber. Otvor AI runner, financie, logs alebo settings bez zbytočných grafov a šumu.
+          Po prihlásení je tu len rýchly výber. Otvor AI runner, financie, Proxmox, logs alebo settings bez zbytočných grafov a šumu.
         </p>
       </div>
 
-      <div className="relative mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="relative mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {hubCards.map((card) => (
           <Link
             key={card.href}
