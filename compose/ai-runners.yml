@@ -1,11 +1,15 @@
 services:
   claude:
-    image: node:20-alpine
+    build:
+      context: ..
+      dockerfile: compose/claude-cli.Dockerfile
+    image: financie-claude-cli:local
     container_name: claude-cli
     working_dir: /workspace
     volumes:
       - ..:/workspace
-    command: sh -lc "npm install -g @anthropic-ai/claude-code && exec sh"
+      - claude-home:/root
+    command: sh
     stdin_open: true
     tty: true
 
@@ -18,3 +22,6 @@ services:
     command: sh -lc "npm install -g @openai/codex && exec sh"
     stdin_open: true
     tty: true
+
+volumes:
+  claude-home:
