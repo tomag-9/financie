@@ -20,7 +20,7 @@ const globalForScheduler = globalThis as unknown as {
 }
 
 const DEFAULT_CLAUDE_COMMAND = 'docker exec -i claude-cli claude -p "Say, hello"'
-const DEFAULT_CODEX_COMMAND = 'docker exec -i codex-cli codex exec "Say, hello"'
+const DEFAULT_CODEX_COMMAND = 'docker exec -i codex-cli codex exec --no-daemon "Say, hello"'
 
 function timeKey(date: Date): string {
   return date.toTimeString().slice(0, 5)

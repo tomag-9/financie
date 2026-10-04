@@ -108,8 +108,10 @@ docker exec -it codex-cli codex login
 ```
 
 Alternatívou je nastaviť `OPENAI_API_KEY` v prostredí služby `codex`. Predvolený
-alarmový príkaz používa neinteraktívne `codex exec`; vlastný príkaz sa nastavuje
-cez `CODEX_ALARM_COMMAND`.
+alarmový príkaz používa neinteraktívne `codex exec --no-daemon`, pretože alarm
+nepotrebuje PID-managed background server a v Docker kontajneri by mohol zlyhať
+pri čítaní štartovacieho času procesu. Vlastný príkaz sa nastavuje cez
+`CODEX_ALARM_COMMAND`; pri `codex exec` v kontajneri ponechaj `--no-daemon`.
 
 ## Troubleshooting
 - Ak login hlasi missing password, skontroluj `ADMIN_PASSWORD` a znovu spusti seed.
