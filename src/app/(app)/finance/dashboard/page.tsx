@@ -1,5 +1,6 @@
 import { NetWorthChart } from '@/components/charts/NetWorthChart'
 import { SavingsRateChart } from '@/components/charts/SavingsRateChart'
+import { FinanceAnalyticsCharts } from '@/components/charts/FinanceAnalyticsCharts'
 import { DashboardMonthSelect } from '@/components/dashboard/DashboardMonthSelect'
 import {
 	calculateMonthlySavingsSeries,
@@ -183,6 +184,56 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 		savingsRate: point.savingsRate ?? 0,
 	}))
 
+	const cashFlowData = monthlySavings.slice(-12).map((point) => ({
+		monthLabel: shortMonthFormatter.format(point.monthDate),
+		income: point.totalIncome,
+		invested: point.totalInvested,
+	}))
+
+	const changeData = monthlySeries.slice(-12).map((point) => {
+		const absoluteIndex = monthlySeries.findIndex((seriesPoint) => seriesPoint.monthKey === point.monthKey)
+		const previous = absoluteIndex > 0 ? monthlySeries[absoluteIndex - 1] : null
+		return {
+			monthLabel: shortMonthFormatter.format(point.monthDate),
+			change: previous ? point.netWorth - previous.netWorth : 0,
+		}
+	})
+
+	const quarterlyCashFlowData = Array.from(
+		monthlySavings.reduce((quarters, point) => {
+			const year = point.monthDate.getUTCFullYear()
+			const quarter = Math.floor(point.monthDate.getUTCMonth() / 3) + 1
+			const key = `${year}-Q${quarter}`
+			const current = quarters.get(key) ?? { monthLabel: `Q${quarter} ${year}`, income: 0, invested: 0 }
+			current.income += point.totalIncome
+			current.invested += point.totalInvested
+			quarters.set(key, current)
+			return quarters
+		}, new Map<string, { monthLabel: string; income: number; invested: number }>())
+		.values(),
+	).slice(-4)
+
+	const quarterlyChangeData = Array.from(
+		monthlySeries.reduce((quarters, point) => {
+			const year = point.monthDate.getUTCFullYear()
+			const quarter = Math.floor(point.monthDate.getUTCMonth() / 3) + 1
+			const key = `${year}-Q${quarter}`
+			const current = quarters.get(key) ?? {
+				monthLabel: `Q${quarter} ${year}`,
+				lastNetWorth: point.netWorth,
+			}
+			current.lastNetWorth = point.netWorth
+			quarters.set(key, current)
+			return quarters
+		}, new Map<string, { monthLabel: string; lastNetWorth: number }>())
+		.values(),
+	)
+		.map((quarter, index, quarters) => ({
+			monthLabel: quarter.monthLabel,
+			change: index > 0 ? quarter.lastNetWorth - quarters[index - 1].lastNetWorth : 0,
+		}))
+		.slice(-4)
+
 	const latestPoint = monthlySeries[monthlySeries.length - 1]
 	const distributionData = latestPoint.accountTotals
 		.map((account) => ({
@@ -239,32 +290,32 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 				</div>
 			</div>
 
-			<div className="grid gap-3 grid-cols-2 xl:grid-cols-5">
-				<article className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
+			<div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-5">
+				<article className="min-w-[78%] snap-start rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:min-w-0 sm:p-4">
 					<p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Net worth</p>
 					<p className="mt-2 text-lg font-semibold leading-none sm:text-2xl">{currencyFormatter.format(selectedPoint.netWorth)}</p>
 				</article>
 
-				<article className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
+				<article className="min-w-[78%] snap-start rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:min-w-0 sm:p-4">
 					<p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Cash total</p>
 					<p className="mt-2 text-lg font-semibold leading-none sm:text-2xl">{currencyFormatter.format(selectedPoint.cashTotal)}</p>
 				</article>
 
-				<article className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
+				<article className="min-w-[78%] snap-start rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:min-w-0 sm:p-4">
 					<p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Monthly change</p>
 					<p className={`mt-2 text-lg font-semibold leading-none sm:text-2xl ${monthlyDelta > 0 ? 'text-emerald-600 dark:text-emerald-400' : monthlyDelta < 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
 						{formatDeltaCurrency(monthlyDelta)}
 					</p>
 				</article>
 
-				<article className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
+				<article className="min-w-[78%] snap-start rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:min-w-0 sm:p-4">
 					<p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Monthly change %</p>
 					<p className={`mt-2 text-lg font-semibold leading-none sm:text-2xl ${monthlyDeltaPct !== null && monthlyDeltaPct > 0 ? 'text-emerald-600 dark:text-emerald-400' : monthlyDeltaPct !== null && monthlyDeltaPct < 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
 						{formatDeltaPct(monthlyDeltaPct)}
 					</p>
 				</article>
 
-				<article className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
+				<article className="min-w-[78%] snap-start rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:min-w-0 sm:p-4">
 					<p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Net worth after liabilities</p>
 					<p className="mt-2 text-lg font-semibold leading-none sm:text-2xl">{currencyFormatter.format(netWorthAfterLiabilities)}</p>
 				</article>
@@ -291,6 +342,13 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 			) : null}
 
 			<NetWorthChart lineData={lineData} distributionData={distributionData} />
+
+			<FinanceAnalyticsCharts
+				cashFlowData={cashFlowData}
+				changeData={changeData}
+				quarterlyCashFlowData={quarterlyCashFlowData}
+				quarterlyChangeData={quarterlyChangeData}
+			/>
 
 			<div className="grid gap-4 lg:grid-cols-2">
 				<article className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
