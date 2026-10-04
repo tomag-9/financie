@@ -104,7 +104,7 @@ Pri prvom spustení sa treba do kontajnera prihlásiť a login zostane uložený
 volume `codex-home`:
 
 ```bash
-docker exec -it codex-cli codex login
+docker exec -it codex-cli codex --no-daemon login
 ```
 
 Alternatívou je nastaviť `OPENAI_API_KEY` v prostredí služby `codex`. Predvolený
