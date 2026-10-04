@@ -20,7 +20,7 @@ const globalForScheduler = globalThis as unknown as {
 }
 
 const DEFAULT_CLAUDE_COMMAND = 'docker exec -i claude-cli claude -p "Say, hello"'
-const DEFAULT_CODEX_COMMAND = 'docker exec -i codex-cli codex -p "Say, hello"'
+const DEFAULT_CODEX_COMMAND = 'docker exec -i codex-cli codex exec "Say, hello"'
 
 function timeKey(date: Date): string {
   return date.toTimeString().slice(0, 5)
@@ -118,7 +118,17 @@ function buildTargetLabel(runClaude: boolean, runCodex: boolean): string {
 }
 
 async function runCommand(command: string): Promise<void> {
-  await execAsync(command, { timeout: 120_000 })
+  try {
+    await execAsync(command, { timeout: 120_000 })
+  } catch (error) {
+    const commandError = error as { message?: unknown; stderr?: unknown; stdout?: unknown }
+    const stderr = typeof commandError.stderr === 'string' ? commandError.stderr.trim() : ''
+    const stdout = typeof commandError.stdout === 'string' ? commandError.stdout.trim() : ''
+    const output = stderr || stdout
+    const message = typeof commandError.message === 'string' ? commandError.message : String(error)
+
+    throw new Error(output ? `${message}: ${output}` : message)
+  }
 }
 
 function normalizeCommand(command: string): string {

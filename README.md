@@ -91,6 +91,26 @@ Compose automaticky:
 - Persistent volume: mount na `/data`
 - Env: nastav v UI (necommituj `.env.local`)
 
+### AI Runner / Codex
+
+AI alarmy spúšťajú Codex cez `docker exec` v kontajneri `codex-cli`. Kontajner
+spusť spolu s aplikáciou:
+
+```bash
+docker compose -f compose/ai-runners.yml up -d --build
+```
+
+Pri prvom spustení sa treba do kontajnera prihlásiť a login zostane uložený vo
+volume `codex-home`:
+
+```bash
+docker exec -it codex-cli codex login
+```
+
+Alternatívou je nastaviť `OPENAI_API_KEY` v prostredí služby `codex`. Predvolený
+alarmový príkaz používa neinteraktívne `codex exec`; vlastný príkaz sa nastavuje
+cez `CODEX_ALARM_COMMAND`.
+
 ## Troubleshooting
 - Ak login hlasi missing password, skontroluj `ADMIN_PASSWORD` a znovu spusti seed.
 - Ak push notifikacie neidu, skontroluj VAPID kluce a ci ma prehliadac povolene notifikacie.
