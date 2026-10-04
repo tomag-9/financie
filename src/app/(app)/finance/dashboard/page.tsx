@@ -290,32 +290,32 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 				</div>
 			</div>
 
-			<div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-5">
-				<article className="min-w-[78%] snap-start rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:min-w-0 sm:p-4">
+			<div className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+				<article className="min-w-0 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
 					<p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Net worth</p>
 					<p className="mt-2 text-lg font-semibold leading-none sm:text-2xl">{currencyFormatter.format(selectedPoint.netWorth)}</p>
 				</article>
 
-				<article className="min-w-[78%] snap-start rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:min-w-0 sm:p-4">
+				<article className="min-w-0 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
 					<p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Cash total</p>
 					<p className="mt-2 text-lg font-semibold leading-none sm:text-2xl">{currencyFormatter.format(selectedPoint.cashTotal)}</p>
 				</article>
 
-				<article className="min-w-[78%] snap-start rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:min-w-0 sm:p-4">
+				<article className="min-w-0 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
 					<p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Monthly change</p>
 					<p className={`mt-2 text-lg font-semibold leading-none sm:text-2xl ${monthlyDelta > 0 ? 'text-emerald-600 dark:text-emerald-400' : monthlyDelta < 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
 						{formatDeltaCurrency(monthlyDelta)}
 					</p>
 				</article>
 
-				<article className="min-w-[78%] snap-start rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:min-w-0 sm:p-4">
+				<article className="min-w-0 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
 					<p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Monthly change %</p>
 					<p className={`mt-2 text-lg font-semibold leading-none sm:text-2xl ${monthlyDeltaPct !== null && monthlyDeltaPct > 0 ? 'text-emerald-600 dark:text-emerald-400' : monthlyDeltaPct !== null && monthlyDeltaPct < 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
 						{formatDeltaPct(monthlyDeltaPct)}
 					</p>
 				</article>
 
-				<article className="min-w-[78%] snap-start rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:min-w-0 sm:p-4">
+				<article className="col-span-2 min-w-0 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:col-span-1 sm:p-4">
 					<p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Net worth after liabilities</p>
 					<p className="mt-2 text-lg font-semibold leading-none sm:text-2xl">{currencyFormatter.format(netWorthAfterLiabilities)}</p>
 				</article>

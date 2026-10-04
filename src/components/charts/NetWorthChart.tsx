@@ -78,7 +78,7 @@ export function NetWorthChart({ lineData, distributionData }: NetWorthChartProps
 
   return (
     <div className="grid gap-4 xl:grid-cols-2">
-      <div className="min-w-0 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Net worth over time</h3>
           <div className="w-full sm:hidden">
@@ -108,7 +108,7 @@ export function NetWorthChart({ lineData, distributionData }: NetWorthChartProps
             ))}
           </div>
         </div>
-        <div className="h-72 w-full min-w-0 overflow-hidden">
+        <div className="h-56 w-full min-w-0 overflow-hidden sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={visibleLineData} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#d4d4d8" />
@@ -131,9 +131,9 @@ export function NetWorthChart({ lineData, distributionData }: NetWorthChartProps
         </div>
       </div>
 
-      <div className="min-w-0 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
         <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-200">Asset distribution by account (latest)</h3>
-        <div className="h-72 w-full min-w-0 overflow-hidden">
+        <div className="h-56 w-full min-w-0 overflow-hidden sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={distributionData} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#d4d4d8" />

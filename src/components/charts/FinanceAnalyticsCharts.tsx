@@ -87,24 +87,24 @@ export function FinanceAnalyticsCharts({
       </div>
 
       <article className="min-w-0 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
           <div>
             <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Príjem vs. investície</h4>
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
               {period === 'month' ? 'Mesačný objem za posledných 12 mesiacov' : 'Súhrn za posledné 4 kvartály'}
             </p>
           </div>
-          <div className="shrink-0 text-right text-[11px] text-zinc-500 dark:text-zinc-400">
+          <div className="flex shrink-0 gap-3 text-[11px] text-zinc-500 dark:text-zinc-400">
             <p><span className="mr-1 inline-block size-2 rounded-full bg-sky-600" />príjem</p>
             <p><span className="mr-1 inline-block size-2 rounded-full bg-teal-600" />investície</p>
           </div>
         </div>
-        <div className="h-56 w-full min-w-0">
+        <div className="h-48 w-full min-w-0 overflow-hidden sm:h-56">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={visibleCashFlowData} margin={{ top: 8, right: 4, left: -12, bottom: 0 }}>
+            <BarChart data={visibleCashFlowData} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#d4d4d8" />
-              <XAxis dataKey="monthLabel" tick={{ fontSize: 11, fill: '#71717a' }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={(value) => compactCurrencyFormatter.format(Number(value))} width={58} tick={{ fontSize: 11, fill: '#71717a' }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="monthLabel" interval={period === 'month' ? 2 : 0} tick={{ fontSize: 10, fill: '#71717a' }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={(value) => compactCurrencyFormatter.format(Number(value))} width={62} tick={{ fontSize: 10, fill: '#71717a' }} axisLine={false} tickLine={false} />
               <Tooltip formatter={(value) => formatCurrency(value)} contentStyle={chartTooltipStyle()} labelStyle={{ color: '#52525b' }} />
               <Bar dataKey="income" name="Príjem" fill="#0369a1" radius={[3, 3, 0, 0]} />
               <Bar dataKey="invested" name="Investície" fill="#0f766e" radius={[3, 3, 0, 0]} />
@@ -122,12 +122,12 @@ export function FinanceAnalyticsCharts({
             {period === 'month' ? 'Rast a pokles oproti predchádzajúcemu snapshotu' : 'Zmena oproti predchádzajúcemu kvartálu'}
           </p>
         </div>
-        <div className="h-56 w-full min-w-0">
+        <div className="h-48 w-full min-w-0 overflow-hidden sm:h-56">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={visibleChangeData} margin={{ top: 8, right: 4, left: -12, bottom: 0 }}>
+            <BarChart data={visibleChangeData} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#d4d4d8" />
-              <XAxis dataKey="monthLabel" tick={{ fontSize: 11, fill: '#71717a' }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={(value) => compactCurrencyFormatter.format(Number(value))} width={58} tick={{ fontSize: 11, fill: '#71717a' }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="monthLabel" interval={period === 'month' ? 2 : 0} tick={{ fontSize: 10, fill: '#71717a' }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={(value) => compactCurrencyFormatter.format(Number(value))} width={62} tick={{ fontSize: 10, fill: '#71717a' }} axisLine={false} tickLine={false} />
               <Tooltip formatter={(value) => formatCurrency(value)} contentStyle={chartTooltipStyle()} labelStyle={{ color: '#52525b' }} />
               <Bar dataKey="change" name="Zmena" radius={[3, 3, 0, 0]}>
                 {visibleChangeData.map((entry) => (
