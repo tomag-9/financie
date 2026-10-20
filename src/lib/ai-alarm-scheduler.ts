@@ -19,8 +19,14 @@ const globalForScheduler = globalThis as unknown as {
   aiAlarmSchedulerTickCount?: number
 }
 
-const DEFAULT_CLAUDE_COMMAND = 'docker exec -i claude-cli claude -p "Say, hello"'
-const DEFAULT_CODEX_COMMAND = 'docker exec -i codex-cli codex exec --no-daemon "Say, hello"'
+const DEFAULT_CLAUDE_COMMAND =
+  'docker exec -i ai-runner claude -p --model sonnet --output-format json "Reply with exactly RESET_OK"'
+const DEFAULT_CODEX_COMMAND =
+  'docker exec -i ai-runner codex exec --json "Reply with exactly RESET_OK"'
+
+type CommandOutput = {
+  body: string
+}
 
 function timeKey(date: Date): string {
   return date.toTimeString().slice(0, 5)
@@ -117,14 +123,100 @@ function buildTargetLabel(runClaude: boolean, runCodex: boolean): string {
   return 'AI'
 }
 
-async function runCommand(command: string): Promise<void> {
+function hasStructuredError(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false
+
+  const entry = value as Record<string, unknown>
+  const type = typeof entry.type === 'string' ? entry.type.toLowerCase() : ''
+  const item = entry.item && typeof entry.item === 'object' ? (entry.item as Record<string, unknown>) : null
+  const itemType = typeof item?.type === 'string' ? item.type.toLowerCase() : ''
+
+  return (
+    entry.is_error === true ||
+    typeof entry.api_error === 'string' ||
+    type === 'error' ||
+    type === 'turn.failed' ||
+    itemType === 'error'
+  )
+}
+
+function getStructuredBody(value: unknown): string | null {
+  if (!value || typeof value !== 'object') return null
+
+  const entry = value as Record<string, unknown>
+  if (typeof entry.result === 'string' && entry.result.trim()) {
+    return entry.result.trim()
+  }
+
+  if (entry.item && typeof entry.item === 'object') {
+    const item = entry.item as Record<string, unknown>
+    if (item.type === 'agent_message' && typeof item.text === 'string' && item.text.trim()) {
+      return item.text.trim()
+    }
+  }
+
+  return null
+}
+
+export function validateCommandOutput(stdout: string): CommandOutput {
+  const output = stdout.trim()
+  if (!output) {
+    throw new Error('AI runner returned an empty response body.')
+  }
+
+  const lines = output.split(/\r?\n/).filter((line) => line.trim())
+  const parsed: unknown[] = []
+  let isStructured = true
+
+  for (const line of lines) {
+    try {
+      parsed.push(JSON.parse(line))
+    } catch {
+      isStructured = false
+      break
+    }
+  }
+
+  if (isStructured) {
+    if (parsed.some(hasStructuredError)) {
+      const errorBody = parsed.map(getStructuredBody).find(Boolean)
+      throw new Error(errorBody ?? 'AI runner returned an error response.')
+    }
+
+    const body = parsed.map(getStructuredBody).find(Boolean)
+    if (!body) {
+      throw new Error('AI runner response did not contain a message body.')
+    }
+
+    return { body }
+  }
+
+  if (/^error\b|usage[_ ]limit|rate[_ ]limit|limit reached|you(?:'|’)ve hit your .*limit/im.test(output)) {
+    throw new Error(output)
+  }
+
+  return { body: output }
+}
+
+async function runCommand(command: string): Promise<CommandOutput> {
   try {
-    await execAsync(command, { timeout: 120_000 })
+    const { stdout } = await execAsync(command, { timeout: 120_000 })
+    return validateCommandOutput(stdout)
   } catch (error) {
     const commandError = error as { message?: unknown; stderr?: unknown; stdout?: unknown }
     const stderr = typeof commandError.stderr === 'string' ? commandError.stderr.trim() : ''
     const stdout = typeof commandError.stdout === 'string' ? commandError.stdout.trim() : ''
-    const output = stderr || stdout
+
+    if (stdout) {
+      try {
+        return validateCommandOutput(stdout)
+      } catch (outputError) {
+        const outputMessage = outputError instanceof Error ? outputError.message : String(outputError)
+        throw new Error(outputMessage)
+      }
+    }
+
+    const output = stderr
     const message = typeof commandError.message === 'string' ? commandError.message : String(error)
 
     throw new Error(output ? `${message}: ${output}` : message)
@@ -223,31 +315,41 @@ async function runDueAlarms() {
 
       seenAlarmIds.add(alarm.id)
 
-      const commands: string[] = []
+      const commands: Array<{ target: 'Claude' | 'Codex'; command: string }> = []
       if (alarm.runClaude) {
-        commands.push(process.env.CLAUDE_ALARM_COMMAND ?? DEFAULT_CLAUDE_COMMAND)
+        commands.push({
+          target: 'Claude',
+          command: process.env.CLAUDE_ALARM_COMMAND ?? DEFAULT_CLAUDE_COMMAND,
+        })
       }
       if (alarm.runCodex) {
-        commands.push(process.env.CODEX_ALARM_COMMAND ?? DEFAULT_CODEX_COMMAND)
+        commands.push({
+          target: 'Codex',
+          command: process.env.CODEX_ALARM_COMMAND ?? DEFAULT_CODEX_COMMAND,
+        })
       }
 
       const commandErrors: string[] = []
+      const commandResponses: Array<{ target: string; body: string }> = []
       let didAttempt = false
-      for (const command of commands) {
+      for (const { target, command } of commands) {
         console.info('[ai-alarm] sending command to container', {
           alarmId: alarm.id,
           label: alarm.label,
+          target,
           command,
         })
         try {
           didAttempt = true
-          await runCommand(normalizeCommand(command))
+          const response = await runCommand(normalizeCommand(command))
+          commandResponses.push({ target, body: response.body.slice(0, 2_000) })
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error)
-          commandErrors.push(errorMessage)
+          commandErrors.push(`${target}: ${errorMessage}`)
           console.error('[ai-alarm] command failed', {
             alarmId: alarm.id,
             label: alarm.label,
+            target,
             command,
             error: errorMessage,
           })
@@ -255,28 +357,32 @@ async function runDueAlarms() {
       }
 
       if (didAttempt) {
-        console.info('[ai-alarm] commands completed', {
-          alarmId: alarm.id,
-          label: alarm.label,
-        })
         const targetLabel = buildTargetLabel(alarm.runClaude, alarm.runCodex)
-        await recordAppLog({
-          level: 'info',
-          message: 'Commands completed',
-          details: {
+
+        if (commandErrors.length === 0) {
+          console.info('[ai-alarm] reset verified', {
             alarmId: alarm.id,
             label: alarm.label,
-            minute: minute.toISOString(),
-            targetLabel,
-            commandCount: commands.length,
-          },
-        })
+            responses: commandResponses,
+          })
+          await recordAppLog({
+            level: 'info',
+            message: 'Reset verified',
+            details: {
+              alarmId: alarm.id,
+              label: alarm.label,
+              minute: minute.toISOString(),
+              targetLabel,
+              commandCount: commands.length,
+              responses: commandResponses,
+            },
+          })
+        }
 
         if (commandErrors.length === 0 && successPushEnabled) {
           const runTime = formatBratislavaTime(minute)
-          const closeTime = formatBratislavaTime(new Date(minute.getTime() + 5 * 60 * 60 * 1000))
-          const title = alarm.label ? `Alarm: ${alarm.label}` : 'AI alarm ran'
-          const body = `Alarm ran on ${targetLabel} at ${runTime}. Window closes at ${closeTime}.`
+          const title = alarm.label ? `Reset OK: ${alarm.label}` : 'AI reset OK'
+          const body = `${targetLabel} returned a valid response at ${runTime}.`
 
           console.info('[ai-alarm] sending push notification', {
             alarmId: alarm.id,

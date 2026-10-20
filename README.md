@@ -91,27 +91,27 @@ Compose automaticky:
 - Persistent volume: mount na `/data`
 - Env: nastav v UI (necommituj `.env.local`)
 
-### AI Runner / Codex
+### AI Runner
 
-AI alarmy spúšťajú Codex cez `docker exec` v kontajneri `codex-cli`. Kontajner
-spusť spolu s aplikáciou:
+AI alarmy spúšťajú Claude aj Codex cez `docker exec` v spoločnom kontajneri
+`ai-runner`. Kontajner spusť spolu s aplikáciou:
 
 ```bash
 docker compose -f compose/ai-runners.yml up -d --build
 ```
 
-Pri prvom spustení sa treba do kontajnera prihlásiť a login zostane uložený vo
-volume `codex-home`:
+Pri prvom spustení sa treba prihlásiť do oboch CLI. Loginy zostanú uložené v
+samostatných volumes `claude-home` a `codex-home`:
 
 ```bash
-docker exec -it codex-cli codex --no-daemon login
+docker exec -it ai-runner claude auth login
+docker exec -it ai-runner codex login
 ```
 
-Alternatívou je nastaviť `OPENAI_API_KEY` v prostredí služby `codex`. Predvolený
-alarmový príkaz používa neinteraktívne `codex exec --no-daemon`, pretože alarm
-nepotrebuje PID-managed background server a v Docker kontajneri by mohol zlyhať
-pri čítaní štartovacieho času procesu. Vlastný príkaz sa nastavuje cez
-`CODEX_ALARM_COMMAND`; pri `codex exec` v kontajneri ponechaj `--no-daemon`.
+Alternatívou pre Codex je nastaviť `OPENAI_API_KEY` v prostredí služby
+`ai-runner`. Vlastné príkazy sa nastavujú cez `CLAUDE_ALARM_COMMAND` a
+`CODEX_ALARM_COMMAND`. Príkazy musia vrátiť neprázdne textové telo; JSON odpoveď
+označená ako error sa považuje za neúspešný reset.
 
 ## Troubleshooting
 - Ak login hlasi missing password, skontroluj `ADMIN_PASSWORD` a znovu spusti seed.

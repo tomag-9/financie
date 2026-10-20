@@ -1,28 +1,15 @@
 services:
-  claude:
+  ai-runner:
     build:
       context: ..
-      dockerfile: compose/claude-cli.Dockerfile
-    image: financie-claude-cli:local
-    container_name: claude-cli
+      dockerfile: compose/ai-runner.Dockerfile
+    image: financie-ai-runner:local
+    container_name: ai-runner
     working_dir: /workspace
     volumes:
       - ..:/workspace
-      - claude-home:/root
-    command: sh
-    stdin_open: true
-    tty: true
-
-  codex:
-    build:
-      context: ..
-      dockerfile: compose/codex-cli.Dockerfile
-    image: financie-codex-cli:local
-    container_name: codex-cli
-    working_dir: /workspace
-    volumes:
-      - ..:/workspace
-      - codex-home:/root
+      - claude-home:/auth/claude-home
+      - codex-home:/auth/codex-home
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     command: sh
