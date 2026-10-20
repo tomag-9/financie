@@ -225,13 +225,16 @@ async function runCommand(command: string): Promise<CommandOutput> {
 
 function normalizeCommand(command: string): string {
   const trimmed = command.trim()
+  let normalized = trimmed
   if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
-    return trimmed.slice(1, -1)
+    normalized = trimmed.slice(1, -1)
+  } else if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
+    normalized = trimmed.slice(1, -1)
   }
-  if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
-    return trimmed.slice(1, -1)
-  }
-  return trimmed
+
+  // Alarm probes are unattended. Keeping stdin open can make Codex wait until
+  // the command timeout even after it has produced a valid response.
+  return normalized.replace(/^docker\s+exec\s+-i(?=\s)/, 'docker exec')
 }
 
 async function recordAppLog(entry: {
