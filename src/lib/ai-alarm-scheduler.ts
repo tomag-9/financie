@@ -20,9 +20,9 @@ const globalForScheduler = globalThis as unknown as {
 }
 
 const DEFAULT_CLAUDE_COMMAND =
-  'docker exec -i -w /root ai-runner claude -p --model sonnet --output-format json "Reply with exactly RESET_OK"'
+  'docker exec -w /root ai-runner claude -p --model sonnet --output-format json "Reply with exactly RESET_OK"'
 const DEFAULT_CODEX_COMMAND =
-  'docker exec -i -w /root ai-runner codex --no-daemon exec --skip-git-repo-check --json "Reply with exactly RESET_OK"'
+  'docker exec -w /root ai-runner codex --no-daemon exec --skip-git-repo-check --json "Reply with exactly RESET_OK"'
 
 type CommandOutput = {
   body: string

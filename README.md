@@ -93,7 +93,7 @@ Compose automaticky:
 
 ### AI Runner
 
-AI alarmy spúšťajú Claude aj Codex cez `docker exec` v spoločnom kontajneri
+AI alarmy spúšťajú Claude aj Codex cez neinteraktívne `docker exec` v spoločnom kontajneri
 `ai-runner`. Kontajner spusť spolu s aplikáciou:
 
 ```bash
