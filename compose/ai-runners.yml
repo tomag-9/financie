@@ -5,7 +5,7 @@ services:
       dockerfile: compose/ai-runner.Dockerfile
     image: financie-ai-runner:local
     container_name: ai-runner
-    working_dir: /workspace
+    working_dir: /root
     volumes:
       - ..:/workspace
       - claude-home:/auth/claude-home

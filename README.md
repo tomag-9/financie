@@ -108,6 +108,12 @@ docker exec -it ai-runner claude auth login
 docker exec -it ai-runner codex login
 ```
 
+Interaktívny Codex v kontajneri spúšťaj bez background servera:
+
+```bash
+docker exec -it ai-runner codex --no-daemon
+```
+
 Alternatívou pre Codex je nastaviť `OPENAI_API_KEY` v prostredí služby
 `ai-runner`. Vlastné príkazy sa nastavujú cez `CLAUDE_ALARM_COMMAND` a
 `CODEX_ALARM_COMMAND`. Príkazy musia vrátiť neprázdne textové telo; JSON odpoveď
