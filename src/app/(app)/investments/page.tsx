@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { MonthPicker } from '@/components/ui/MonthPicker'
 
@@ -19,6 +19,7 @@ type InvestmentRow = {
   currency: string
   mode: EntryMode
   amount: number
+  isSuggested: boolean
 }
 
 type ApiResponse = {
@@ -67,11 +68,11 @@ export default function InvestmentsPage() {
 
   useEffect(() => {
     if (month !== initialMonth) {
-      window.history.replaceState(null, '', `/investments?month=${month}`)
+      window.history.replaceState(null, '', `/finance/investments?month=${month}`)
     }
   }, [initialMonth, month])
 
-  async function loadData(targetMonth: string) {
+  const loadData = useCallback(async (targetMonth: string) => {
     setLoading(true)
     setError(null)
 
@@ -97,19 +98,17 @@ export default function InvestmentsPage() {
       setEditAmounts(nextEditAmounts)
       setEditModes(nextEditModes)
 
-      if (!createAccountId && okData.accounts.length > 0) {
-        setCreateAccountId(okData.accounts[0].id)
-      }
+      setCreateAccountId((current) => current || okData.accounts[0]?.id || '')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load investments.')
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     void loadData(month)
-  }, [month])
+  }, [month, loadData])
 
   async function createEntry() {
     setSaving(true)
@@ -286,7 +285,10 @@ export default function InvestmentsPage() {
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="font-medium text-zinc-900 dark:text-zinc-100">{row.accountName}</p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">{(editModes[row.id] ?? row.mode) === 'RECURRING' ? 'Monthly investment' : 'One-time investment'}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    {(editModes[row.id] ?? row.mode) === 'RECURRING' ? 'Regular contribution' : 'One-time contribution'}
+                    {row.isSuggested ? ' · suggested from previous month' : ''}
+                  </p>
                 </div>
                 <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
                   {row.currency}

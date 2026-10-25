@@ -19,8 +19,13 @@ type NavItem = {
 const THEME_CHANGE_EVENT = 'financie-theme-change'
 
 function isActivePath(pathname: string, href: string): boolean {
-  if (href === '/finance/dashboard') return pathname === '/finance/dashboard'
-  return pathname === href || pathname.startsWith(`${href}/`)
+  const canonicalPath = pathname.startsWith('/finance/')
+    ? pathname
+    : /^\/(dashboard|snapshots|income|investments|liabilities|accounts)(\/|$)/.test(pathname)
+      ? `/finance${pathname}`
+      : pathname
+  if (href === '/finance/dashboard') return canonicalPath === '/finance/dashboard'
+  return canonicalPath === href || canonicalPath.startsWith(`${href}/`)
 }
 
 function isFinancePath(pathname: string): boolean {
@@ -32,7 +37,7 @@ function isFinancePath(pathname: string): boolean {
     pathname.startsWith('/finance/investments') ||
     pathname.startsWith('/finance/liabilities') ||
     pathname.startsWith('/finance/accounts') ||
-    pathname.startsWith('/snapshots')
+    /^\/(dashboard|snapshots|income|investments|liabilities|accounts)(\/|$)/.test(pathname)
   )
 }
 

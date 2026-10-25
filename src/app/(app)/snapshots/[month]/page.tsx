@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { CustomFieldType } from '@prisma/client'
+import { CustomFieldType, Prisma } from '@prisma/client'
 import { auth } from '@/lib/auth'
-import { parseSnapshotCustomValues, serializeSnapshotCustomValues } from '@/lib/custom-fields'
+import { normalizeSnapshotCustomValues, parseSnapshotCustomValues } from '@/lib/custom-fields'
 import { prisma } from '@/lib/prisma'
 import { SnapshotMonthPicker } from '@/components/snapshots/SnapshotMonthPicker'
 
@@ -18,6 +18,7 @@ type ActiveAccountWithSnapshot = {
   type: string
   currency: string
   snapshotBalance: string | null
+  snapshotNote: string
   customValues: Record<string, string | number | boolean | null>
 }
 
@@ -90,7 +91,7 @@ async function saveAllBalances(monthKey: string, formData: FormData): Promise<vo
 
   const monthDate = parseMonthToUtcDate(monthKey)
   if (!monthDate) {
-    redirect('/snapshots')
+    redirect('/finance/snapshots')
   }
 
   const activeAccounts = await prisma.account.findMany({
@@ -104,10 +105,11 @@ async function saveAllBalances(monthKey: string, formData: FormData): Promise<vo
     select: { id: true, fieldType: true },
   })
 
-  await prisma.$transaction(
-    activeAccounts.map((account) => {
+  await prisma.$transaction(async (tx) => {
+    for (const account of activeAccounts) {
       const rawValue = formData.get(`balance:${account.id}`)
       const normalizedValue = normalizeDecimalInput(rawValue)
+      const note = String(formData.get(`note:${account.id}`) ?? '').trim().slice(0, 500) || null
 
       const customValues: Record<string, string | number | boolean | null> = {}
       for (const field of activeCustomFields) {
@@ -118,9 +120,7 @@ async function saveAllBalances(monthKey: string, formData: FormData): Promise<vo
         }
       }
 
-      const serializedCustomValues = serializeSnapshotCustomValues(customValues)
-
-      return prisma.snapshot.upsert({
+      const snapshot = await tx.snapshot.upsert({
         where: {
           accountId_month: {
             accountId: account.id,
@@ -131,15 +131,25 @@ async function saveAllBalances(monthKey: string, formData: FormData): Promise<vo
           accountId: account.id,
           month: monthDate,
           balance: normalizedValue,
-          note: serializedCustomValues,
+          note,
         },
         update: {
           balance: normalizedValue,
-          note: serializedCustomValues,
+          note,
         },
+        select: { id: true },
       })
-    })
-  )
+
+      for (const [fieldId, value] of Object.entries(customValues)) {
+        const jsonValue = value === null ? Prisma.JsonNull : value
+        await tx.snapshotCustomValue.upsert({
+          where: { snapshotId_fieldId: { snapshotId: snapshot.id, fieldId } },
+          create: { snapshotId: snapshot.id, fieldId, value: jsonValue },
+          update: { value: jsonValue },
+        })
+      }
+    }
+  })
 
   redirect('/finance/dashboard')
 }
@@ -155,19 +165,33 @@ async function loadActiveAccounts(monthDate: Date): Promise<ActiveAccountWithSna
       currency: true,
       snapshots: {
         where: { month: monthDate },
-        select: { balance: true, note: true },
+        select: {
+          balance: true,
+          note: true,
+          customValues: { select: { fieldId: true, value: true } },
+        },
       },
     },
   })
 
-  return accounts.map((account) => ({
-    id: account.id,
-    name: account.name,
-    type: account.type,
-    currency: account.currency,
-    snapshotBalance: account.snapshots[0]?.balance?.toString() ?? null,
-    customValues: parseSnapshotCustomValues(account.snapshots[0]?.note),
-  }))
+  return accounts.map((account) => {
+    const snapshot = account.snapshots[0]
+    const customValues = parseSnapshotCustomValues(snapshot?.note)
+    for (const item of snapshot?.customValues ?? []) {
+      const normalized = normalizeSnapshotCustomValues({ [item.fieldId]: item.value })
+      if (item.fieldId in normalized) customValues[item.fieldId] = normalized[item.fieldId]
+    }
+
+    return {
+      id: account.id,
+      name: account.name,
+      type: account.type,
+      currency: account.currency,
+      snapshotBalance: snapshot?.balance?.toString() ?? null,
+      snapshotNote: snapshot?.note && !Object.keys(parseSnapshotCustomValues(snapshot.note)).length ? snapshot.note : '',
+      customValues,
+    }
+  })
 }
 
 export default async function MonthSnapshotsPage({ params }: MonthSnapshotsPageProps) {
@@ -259,6 +283,15 @@ export default async function MonthSnapshotsPage({ params }: MonthSnapshotsPageP
                       : 'border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-950'
                   }`}
                 />
+
+				<input
+					name={`note:${account.id}`}
+					type="text"
+					maxLength={500}
+					defaultValue={account.snapshotNote}
+					placeholder="Poznámka (voliteľné)"
+					className="mt-2 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+				/>
 
                 {activeCustomFields.length > 0 ? (
                   <div className="mt-4 space-y-3 border-t border-zinc-200 pt-3 dark:border-zinc-800">

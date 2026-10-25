@@ -27,6 +27,7 @@ type BarPoint = {
 type NetWorthChartProps = {
   lineData: LinePoint[]
   distributionData: BarPoint[]
+  distributionLabel: string
 }
 
 type HistoryRange = '6M' | '12M' | '24M' | 'ALL'
@@ -67,7 +68,7 @@ function formatTooltipValue(value: number | string | ReadonlyArray<number | stri
   return currencyFormatter.format(Number(value ?? 0))
 }
 
-export function NetWorthChart({ lineData, distributionData }: NetWorthChartProps) {
+export function NetWorthChart({ lineData, distributionData, distributionLabel }: NetWorthChartProps) {
   const [range, setRange] = useState<HistoryRange>('12M')
 
   const visibleLineData = useMemo(() => {
@@ -132,7 +133,7 @@ export function NetWorthChart({ lineData, distributionData }: NetWorthChartProps
       </div>
 
       <div className="min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
-        <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-200">Asset distribution by account (latest)</h3>
+        <h3 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-200">Asset distribution by account ({distributionLabel})</h3>
         <div className="h-56 w-full min-w-0 overflow-hidden sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={distributionData} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>

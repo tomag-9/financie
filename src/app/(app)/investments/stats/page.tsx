@@ -7,5 +7,5 @@ function toMonthKeyInUtc(date: Date): string {
 }
 
 export default function InvestmentsStatsPage() {
-  redirect(`/investments/${toMonthKeyInUtc(new Date())}`)
+  redirect(`/finance/investments?month=${toMonthKeyInUtc(new Date())}`)
 }

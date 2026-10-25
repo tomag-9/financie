@@ -142,7 +142,18 @@ async function main() {
   console.log('✓ Settings created')
 
   // ─── Účty ────────────────────────────────────────────────────────────────
+  const firstSnapshotMonthByAccount = new Map<string, Date>()
+  for (const [monthStr, balances] of seedPayload.snapshots) {
+    const [year, month] = monthStr.split('-').map(Number)
+    const monthDate = new Date(Date.UTC(year, month - 1, 1))
+    for (const accountId of Object.keys(balances)) {
+      const current = firstSnapshotMonthByAccount.get(accountId)
+      if (!current || monthDate < current) firstSnapshotMonthByAccount.set(accountId, monthDate)
+    }
+  }
+
   for (const acc of seedPayload.accounts) {
+    const trackingStartMonth = firstSnapshotMonthByAccount.get(acc.id) ?? new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1))
     await prisma.account.upsert({
       where: { id: acc.id },
       update: {
@@ -150,12 +161,15 @@ async function main() {
         type: ACCOUNT_TYPES[acc.type],
         sortOrder: acc.sortOrder,
         isActive: true,
+        trackingStartMonth,
+        closedAt: null,
       },
       create: {
         id: acc.id,
         name: acc.name,
         type: ACCOUNT_TYPES[acc.type],
         sortOrder: acc.sortOrder,
+        trackingStartMonth,
       },
     })
   }

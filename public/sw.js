@@ -27,7 +27,7 @@ self.addEventListener('push', (event) => {
     payload = event.data.json()
   } catch {
     const text = event.data.text()
-    payload = { title: 'Financie', body: text, url: '/snapshots' }
+    payload = { title: 'Financie', body: text, url: '/finance/snapshots' }
   }
 
   const title = payload?.title || 'Financie'
@@ -36,7 +36,7 @@ self.addEventListener('push', (event) => {
     icon: '/next.svg',
     badge: '/next.svg',
     data: {
-      url: payload?.url || '/snapshots',
+      url: payload?.url || '/finance/snapshots',
     },
   }
 
@@ -45,7 +45,7 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const targetUrl = event.notification.data?.url || '/snapshots'
+  const targetUrl = event.notification.data?.url || '/finance/snapshots'
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {

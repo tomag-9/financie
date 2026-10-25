@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   const sent = await sendPushNotification({
     title: 'Financie',
     body: `Čas zadať financie za ${month}`,
-    url: `/snapshots?month=${month}`,
+    url: `/finance/snapshots?month=${month}`,
   })
 
   return NextResponse.json({

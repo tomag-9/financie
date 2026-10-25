@@ -3,11 +3,6 @@
 import { useRouter } from 'next/navigation'
 import { MonthPicker } from '@/components/ui/MonthPicker'
 
-type MonthOption = {
-  key: string
-  label: string
-}
-
 type DashboardMonthSelectProps = {
   selectedMonthKey: string
 }

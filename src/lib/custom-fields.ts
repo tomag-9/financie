@@ -1,12 +1,5 @@
-export const SNAPSHOT_CUSTOM_VALUES_VERSION = 1 as const
-
 export type SnapshotCustomFieldPrimitive = string | number | boolean | null
 export type SnapshotCustomValues = Record<string, SnapshotCustomFieldPrimitive>
-
-type SnapshotCustomValuesPayload = {
-  version: number
-  values: SnapshotCustomValues
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -42,20 +35,6 @@ export function normalizeSnapshotCustomValues(input: unknown): SnapshotCustomVal
   }
 
   return normalized
-}
-
-export function serializeSnapshotCustomValues(values: unknown): string | null {
-  const normalized = normalizeSnapshotCustomValues(values)
-  if (Object.keys(normalized).length === 0) {
-    return null
-  }
-
-  const payload: SnapshotCustomValuesPayload = {
-    version: SNAPSHOT_CUSTOM_VALUES_VERSION,
-    values: normalized,
-  }
-
-  return JSON.stringify(payload)
 }
 
 export function parseSnapshotCustomValues(rawNote: string | null | undefined): SnapshotCustomValues {

@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-type EntryMode = 'RECURRING' | 'ONE_OFF'
+type ContributionMode = 'RECURRING' | 'ONE_OFF'
 
 function currentMonthKeyUtc(): string {
   const now = new Date()
@@ -17,265 +17,122 @@ function parseMonthKey(value: string | null): { key: string; date: Date } | null
 
   const year = Number(match[1])
   const month = Number(match[2])
-  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) return null
-
-  return {
-    key,
-    date: new Date(Date.UTC(year, month - 1, 1)),
-  }
+  if (!Number.isInteger(year) || month < 1 || month > 12) return null
+  return { key, date: new Date(Date.UTC(year, month - 1, 1)) }
 }
 
-function investmentIdForAccount(accountId: string): string {
-  return `account-invest:${accountId}`
-}
-
-function normalizeMode(value: unknown): EntryMode {
+function normalizeMode(value: unknown): ContributionMode {
   return value === 'ONE_OFF' ? 'ONE_OFF' : 'RECURRING'
 }
 
-function toDecimalOrZero(value: unknown): Prisma.Decimal {
-  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
-    return new Prisma.Decimal(value)
-  }
-
-  if (typeof value === 'string') {
-    const parsed = Number(value.trim().replace(',', '.'))
-    if (Number.isFinite(parsed) && parsed >= 0) {
-      return new Prisma.Decimal(parsed)
-    }
-  }
-
-  return new Prisma.Decimal(0)
-}
-
-type UpsertPayload = {
-  month: { key: string; date: Date }
-  accountId: string
-  mode: EntryMode
-  amount: Prisma.Decimal
-}
-
-async function upsertEntry(payload: UpsertPayload) {
-  return prisma.$transaction(async (tx) => {
-    const account = await tx.account.findFirst({
-      where: { id: payload.accountId, isActive: true },
-      select: { id: true, name: true, currency: true },
-    })
-
-    if (!account) {
-      throw new Error('ACCOUNT_NOT_FOUND')
-    }
-
-    const investmentId = investmentIdForAccount(account.id)
-
-    await tx.investment.upsert({
-      where: { id: investmentId },
-      update: {
-        name: account.name,
-        ticker: `ACC_${account.id.toUpperCase()}`,
-        platform: 'ACCOUNT',
-        assetType: 'ACCOUNT',
-        isArchived: false,
-      },
-      create: {
-        id: investmentId,
-        name: account.name,
-        ticker: `ACC_${account.id.toUpperCase()}`,
-        isin: null,
-        platform: 'ACCOUNT',
-        assetType: 'ACCOUNT',
-        isArchived: false,
-        units: 0,
-        avgPrice: null,
-      },
-    })
-
-    const entry = await tx.investmentEntry.upsert({
-      where: {
-        investmentId_month: {
-          investmentId,
-          month: payload.month.date,
-        },
-      },
-      create: {
-        investmentId,
-        month: payload.month.date,
-        entryType: payload.mode,
-        amountAdded: payload.amount,
-        unitsAdded: 0,
-        priceAtTime: null,
-      },
-      update: {
-        entryType: payload.mode,
-        amountAdded: payload.amount,
-        unitsAdded: 0,
-        priceAtTime: null,
-      },
-      select: {
-        id: true,
-        entryType: true,
-        amountAdded: true,
-      },
-    })
-
-    return {
-      id: entry.id,
-      accountId: account.id,
-      accountName: account.name,
-      currency: account.currency,
-      month: payload.month.key,
-      mode: entry.entryType === 'ONE_OFF' ? 'ONE_OFF' : 'RECURRING',
-      amount: entry.amountAdded.toNumber(),
-    }
-  })
+function normalizeAmount(value: unknown): Prisma.Decimal | null {
+  const parsed = typeof value === 'string' ? Number(value.trim().replace(',', '.')) : Number(value)
+  if (!Number.isFinite(parsed) || parsed < 0) return null
+  return new Prisma.Decimal(parsed)
 }
 
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const month = parseMonthKey(url.searchParams.get('month'))
-  if (!month) {
-    return NextResponse.json({ error: 'Invalid month.' }, { status: 400 })
-  }
+  if (!month) return NextResponse.json({ error: 'Invalid month.' }, { status: 400 })
 
-  const [accounts, entries] = await Promise.all([
+  const [accounts, current, previousRecurring] = await Promise.all([
     prisma.account.findMany({
       where: { isActive: true },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-      select: {
-        id: true,
-        name: true,
-        currency: true,
-      },
+      select: { id: true, name: true, currency: true },
     }),
-    prisma.investmentEntry.findMany({
-      where: {
-        month: month.date,
-        investmentId: { startsWith: 'account-invest:' },
-        amountAdded: { gt: 0 },
-      },
-      select: {
-        id: true,
-        investmentId: true,
-        entryType: true,
-        amountAdded: true,
-      },
+    prisma.investmentContribution.findMany({
+      where: { month: month.date },
+      select: { id: true, accountId: true, mode: true, amount: true },
+    }),
+    prisma.investmentContribution.findMany({
+      where: { month: { lt: month.date }, mode: 'RECURRING' },
+      orderBy: { month: 'desc' },
+      select: { accountId: true, amount: true },
     }),
   ])
 
-  const accountById = new Map(accounts.map((account) => [account.id, account]))
-  const rows = entries
-    .map((entry) => {
-      const accountId = entry.investmentId.replace('account-invest:', '')
-      const account = accountById.get(accountId)
-      if (!account) return null
+  const currentByAccount = new Map(current.map((entry) => [entry.accountId, entry]))
+  const suggestionByAccount = new Map<string, Prisma.Decimal>()
+  for (const entry of previousRecurring) {
+    if (!suggestionByAccount.has(entry.accountId)) suggestionByAccount.set(entry.accountId, entry.amount)
+  }
 
-      return {
-        id: entry.id,
-        accountId,
-        accountName: account.name,
-        currency: account.currency,
-        mode: entry.entryType === 'ONE_OFF' ? 'ONE_OFF' : 'RECURRING',
-        amount: entry.amountAdded.toNumber(),
-      }
-    })
-    .filter((row): row is NonNullable<typeof row> => Boolean(row))
+  const rows = accounts.flatMap((account) => {
+    const entry = currentByAccount.get(account.id)
+    const suggestedAmount = suggestionByAccount.get(account.id)
+    if (!entry && !suggestedAmount) return []
 
-  const totalInvested = rows.reduce((acc, row) => acc + row.amount, 0)
+    return [{
+      id: entry?.id ?? `suggested:${account.id}`,
+      accountId: account.id,
+      accountName: account.name,
+      currency: account.currency,
+      mode: (entry?.mode === 'ONE_OFF' ? 'ONE_OFF' : 'RECURRING') as ContributionMode,
+      amount: (entry?.amount ?? suggestedAmount)?.toNumber() ?? 0,
+      isSuggested: !entry,
+    }]
+  })
 
   return NextResponse.json({
     month: month.key,
     accounts,
     rows,
-    totalInvested,
+    totalInvested: current.reduce((sum, entry) => sum + entry.amount.toNumber(), 0),
   })
 }
 
-export async function POST(request: Request) {
+async function saveContribution(request: Request, createdStatus?: number) {
   const session = await auth()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  let body: unknown
+  let payload: Record<string, unknown>
   try {
-    body = await request.json()
+    payload = (await request.json()) as Record<string, unknown>
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 })
   }
 
-  const payload = (body ?? {}) as Record<string, unknown>
   const month = parseMonthKey(typeof payload.month === 'string' ? payload.month : null)
-  if (!month) {
-    return NextResponse.json({ error: 'Invalid month.' }, { status: 400 })
-  }
-
   const accountId = typeof payload.accountId === 'string' ? payload.accountId.trim() : ''
-  if (!accountId) {
-    return NextResponse.json({ error: 'Account is required.' }, { status: 400 })
+  const amount = normalizeAmount(payload.amount)
+  if (!month || !accountId || amount === null) {
+    return NextResponse.json({ error: 'Month, account and a non-negative amount are required.' }, { status: 400 })
   }
 
-  const amount = toDecimalOrZero(payload.amount)
+  const account = await prisma.account.findFirst({
+    where: { id: accountId, isActive: true },
+    select: { id: true, name: true, currency: true },
+  })
+  if (!account) return NextResponse.json({ error: 'Account not found.' }, { status: 404 })
+
   const mode = normalizeMode(payload.mode)
+  const entry = await prisma.investmentContribution.upsert({
+    where: { accountId_month: { accountId, month: month.date } },
+    create: { accountId, month: month.date, mode, amount },
+    update: { mode, amount },
+    select: { id: true, mode: true, amount: true },
+  })
 
-  try {
-    const row = await upsertEntry({
-      month,
+  return NextResponse.json({
+    row: {
+      id: entry.id,
       accountId,
-      mode,
-      amount,
-    })
+      accountName: account.name,
+      currency: account.currency,
+      month: month.key,
+      mode: entry.mode === 'ONE_OFF' ? 'ONE_OFF' : 'RECURRING',
+      amount: entry.amount.toNumber(),
+      isSuggested: false,
+    },
+  }, createdStatus ? { status: createdStatus } : undefined)
+}
 
-    return NextResponse.json({ row }, { status: 201 })
-  } catch (error) {
-    if (error instanceof Error && error.message === 'ACCOUNT_NOT_FOUND') {
-      return NextResponse.json({ error: 'Account not found.' }, { status: 404 })
-    }
-
-    return NextResponse.json({ error: 'Failed to save investment entry.' }, { status: 500 })
-  }
+export async function POST(request: Request) {
+  return saveContribution(request, 201)
 }
 
 export async function PATCH(request: Request) {
-  const session = await auth()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  let body: unknown
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 })
-  }
-
-  const payload = (body ?? {}) as Record<string, unknown>
-  const month = parseMonthKey(typeof payload.month === 'string' ? payload.month : null)
-  if (!month) {
-    return NextResponse.json({ error: 'Invalid month.' }, { status: 400 })
-  }
-
-  const accountId = typeof payload.accountId === 'string' ? payload.accountId.trim() : ''
-  if (!accountId) {
-    return NextResponse.json({ error: 'Account is required.' }, { status: 400 })
-  }
-
-  const amount = toDecimalOrZero(payload.amount)
-  const mode = normalizeMode(payload.mode)
-
-  try {
-    const row = await upsertEntry({
-      month,
-      accountId,
-      mode,
-      amount,
-    })
-
-    return NextResponse.json({ row })
-  } catch (error) {
-    if (error instanceof Error && error.message === 'ACCOUNT_NOT_FOUND') {
-      return NextResponse.json({ error: 'Account not found.' }, { status: 404 })
-    }
-
-    return NextResponse.json({ error: 'Failed to update investment entry.' }, { status: 500 })
-  }
+  return saveContribution(request)
 }

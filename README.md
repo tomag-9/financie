@@ -13,6 +13,9 @@ Self-hosted osobna appka na mesacne sledovanie financii (ucty, prijmy, investici
 ## Co aplikacia robi
 - Mesacne snapshots uctov a net worth.
 - Evidencia prijmov, JOJ detailov, investicii a zavazkov.
+- Kontrola kompletnosti mesacnych snapshotov; chybajuce ucty sa nepovazuju za nulu.
+- JOJ prijata suma sa atomicky synchronizuje do mesacneho prijmu.
+- Investicie v aktualnom UI znamenaju mesacne investovane prispevky, nie market portfolio.
 - PWA instalacia, offline fallback a push pripomienky.
 
 ## Rychly start
@@ -67,7 +70,6 @@ PWA a push:
 - `VAPID_EMAIL`
 
 Volitelne:
-- `ALPHA_VANTAGE_KEY`
 - `ENABLE_CRON`
 - `CRON_SECRET`
 - `DEFAULT_SAVINGS_TARGET`
@@ -140,6 +142,7 @@ označená ako error sa považuje za neúspešný reset.
 npm run lint
 npm run build
 npx prisma studio
+npm test
 ```
 ## Proxmox ovládanie
 

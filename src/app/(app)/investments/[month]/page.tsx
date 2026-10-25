@@ -8,5 +8,5 @@ type PageProps = {
 
 export default async function InvestmentsMonthPage({ params }: PageProps) {
   const resolved = await params
-  redirect(`/investments?month=${resolved.month}`)
+  redirect(`/finance/investments?month=${resolved.month}`)
 }

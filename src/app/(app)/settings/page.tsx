@@ -1,6 +1,11 @@
 import Link from 'next/link'
 import { cookies } from 'next/headers'
-import { signOut } from '@/lib/auth'
+import type { Prisma } from '@prisma/client'
+import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+import { auth, signOut } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import type { SettingsData } from '@/types'
 
 function IconLogout() {
   return (
@@ -18,7 +23,30 @@ async function logoutAction(): Promise<void> {
   await signOut({ redirectTo: '/login' })
 }
 
-export default function SettingsPage() {
+async function saveFinanceSettings(formData: FormData): Promise<void> {
+  'use server'
+
+  if (!(await auth())) redirect('/login')
+  const parsed = Number(String(formData.get('savingsGoalPct') ?? '').replace(',', '.'))
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1000) return
+
+  const settings = await prisma.settings.findUnique({ where: { id: 'singleton' }, select: { data: true } })
+  const current = (settings?.data ?? {}) as SettingsData
+  const nextData = { ...current, savings_goal_pct: parsed } as unknown as Prisma.InputJsonValue
+  await prisma.settings.upsert({
+    where: { id: 'singleton' },
+    create: { id: 'singleton', data: nextData },
+    update: { data: nextData },
+  })
+  revalidatePath('/settings')
+  revalidatePath('/finance/dashboard')
+}
+
+export default async function SettingsPage() {
+  const settings = await prisma.settings.findUnique({ where: { id: 'singleton' }, select: { data: true } })
+  const settingsData = (settings?.data ?? {}) as SettingsData
+  const savingsGoalPct = settingsData.savings_goal_pct ?? 20
+
   return (
     <section className="space-y-4">
       <div className="space-y-1">
@@ -65,6 +93,27 @@ export default function SettingsPage() {
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">Push alerts and subscription settings.</p>
         </Link>
       </div>
+
+      <form action={saveFinanceSettings} className="max-w-xl rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Finance</p>
+        <h3 className="mt-2 text-base font-semibold text-zinc-900 dark:text-zinc-100">Savings goal</h3>
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">Target share of monthly income invested. Rates above 100 % remain visible in analytics.</p>
+        <div className="mt-3 flex items-end gap-2">
+          <label className="flex-1 text-sm text-zinc-700 dark:text-zinc-200">
+            Target (%)
+            <input
+              name="savingsGoalPct"
+              type="number"
+              min="0"
+              max="1000"
+              step="0.1"
+              defaultValue={savingsGoalPct}
+              className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            />
+          </label>
+          <button type="submit" className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900">Save</button>
+        </div>
+      </form>
 
       <div className="pt-2">
         <form action={logoutAction}>

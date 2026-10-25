@@ -35,6 +35,11 @@ function isMoveDirection(value: unknown): value is MoveDirection {
   return value === 'up' || value === 'down'
 }
 
+function currentMonthUtc(): Date {
+  const now = new Date()
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+}
+
 export async function GET() {
   const accounts = await prisma.account.findMany({
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
@@ -87,6 +92,7 @@ export async function POST(request: Request) {
       currency,
       isActive: true,
       sortOrder: nextSortOrder,
+      trackingStartMonth: currentMonthUtc(),
     },
     select: {
       id: true,
@@ -166,7 +172,7 @@ export async function PATCH(request: Request) {
     try {
       const account = await prisma.account.update({
         where: { id },
-        data: { isActive: false },
+        data: { isActive: false, closedAt: currentMonthUtc() },
         select: {
           id: true,
           name: true,
