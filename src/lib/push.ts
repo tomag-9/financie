@@ -169,7 +169,7 @@ export async function sendPushNotification(payload: { title: string; body: strin
     const payloadJson = JSON.stringify({
       title: payload.title,
       body: payload.body,
-      url: payload.url ?? '/snapshots',
+      url: payload.url ?? '/finance/snapshots',
     })
 
     await webpush.sendNotification(subscription as webpush.PushSubscription, payloadJson, {

@@ -129,7 +129,7 @@ export default async function SnapshotCustomFieldsPage() {
       <div>
         <h2 className="text-2xl font-semibold tracking-tight">Custom fields - snapshots</h2>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
-          Sprava vlastnych poli pre mesacny snapshot. Hodnoty sa budu ukladat ako JSON do Snapshot.note.
+          Správa vlastných polí pre mesačný snapshot. Hodnoty sa ukladajú oddelene od bežnej poznámky.
         </p>
       </div>
 

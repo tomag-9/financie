@@ -38,7 +38,13 @@ function normalizeDate(value: unknown): Date | null {
   const day = Number(match[3])
   if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null
 
-  return new Date(Date.UTC(year, month - 1, day))
+  const parsed = new Date(Date.UTC(year, month - 1, day))
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) return null
+  return parsed
 }
 
 function normalizeBoolean(value: unknown, fallback = true): boolean {
@@ -119,6 +125,9 @@ export async function POST(request: Request) {
   }
 
   const remaining = remainingInput ?? totalAmount
+  if (remaining.greaterThan(totalAmount)) {
+    return NextResponse.json({ error: 'Zostávajúca suma nemôže byť vyššia ako celková suma.' }, { status: 400 })
+  }
 
   const liability = await prisma.liability.create({
     data: {
@@ -179,6 +188,9 @@ export async function PATCH(request: Request) {
     }
 
     const remaining = remainingInput ?? totalAmount
+    if (remaining.greaterThan(totalAmount)) {
+      return NextResponse.json({ error: 'Zostávajúca suma nemôže byť vyššia ako celková suma.' }, { status: 400 })
+    }
 
     try {
       const liability = await prisma.liability.update({

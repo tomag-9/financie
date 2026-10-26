@@ -5,7 +5,7 @@ Osobná self-hosted webová appka na sledovanie financií pre jedného používa
 Nahradza Excel sheet s mesačnými snapshotmi účtov, zárobkov a investícií.
 
 ## Tech stack (NEzmeňuj bez súhlasu)
-- **Framework**: Next.js 15 (App Router) + TypeScript
+- **Framework**: Next.js 16 (App Router) + TypeScript
 - **Databáza**: SQLite cez Prisma ORM
 - **Auth**: NextAuth.js v5 — credentials provider + TOTP (otplib)
 - **Štýly**: Tailwind CSS v4
@@ -31,7 +31,7 @@ src/
       auth/               # NextAuth handlers
       snapshots/          # CRUD snapshots
       income/             # CRUD income entries
-      investments/        # CRUD + market data fetch
+      investments/        # mesačné investované príspevky podľa účtu
       liabilities/        # CRUD záväzky
       push/               # web-push subscription
       cron/               # cron trigger endpoint
@@ -44,8 +44,7 @@ src/
     auth.ts               # NextAuth config
     totp.ts               # TOTP helpers
     push.ts               # web-push helpers
-    market.ts             # Yahoo Finance / Alpha Vantage fetcher
-    calculations.ts       # TWRR, savings rate, delta výpočty
+    calculations.ts       # net worth, savings rate a delta výpočty
   types/
     index.ts              # zdieľané TypeScript typy
 prisma/
@@ -66,7 +65,10 @@ model Account {
   currency   String     @default("EUR")
   isActive   Boolean    @default(true)
   sortOrder  Int        @default(0)
+  trackingStartMonth DateTime?
+  closedAt   DateTime?
   snapshots  Snapshot[]
+  investmentContributions InvestmentContribution[]
   createdAt  DateTime   @default(now())
 }
 
@@ -79,6 +81,7 @@ model Snapshot {
   note      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  customValues SnapshotCustomValue[]
   @@unique([accountId, month])
 }
 
@@ -147,6 +150,16 @@ model InvestmentEntry {
   @@unique([investmentId, month])
 }
 
+model InvestmentContribution {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id])
+  month     DateTime
+  mode      String   @default("RECURRING")
+  amount    Decimal  @default(0)
+  @@unique([accountId, month])
+}
+
 model CustomField {
   id         String          @id @default(cuid())
   entityType String                          // "snapshot" | "income" | "liability"
@@ -154,6 +167,17 @@ model CustomField {
   fieldType  CustomFieldType                 // TEXT | NUMBER | BOOLEAN
   sortOrder  Int             @default(0)
   isActive   Boolean         @default(true)
+  values     SnapshotCustomValue[]
+}
+
+model SnapshotCustomValue {
+  id         String      @id @default(cuid())
+  snapshotId String
+  snapshot   Snapshot    @relation(fields: [snapshotId], references: [id])
+  fieldId    String
+  field      CustomField @relation(fields: [fieldId], references: [id])
+  value      Json
+  @@unique([snapshotId, fieldId])
 }
 
 model Settings {
@@ -170,25 +194,29 @@ enum CustomFieldType { TEXT NUMBER BOOLEAN }
 ### Snapshots
 - Mesiac sa vždy ukladá ako `new Date(year, month, 1)` — prvý deň mesiaca
 - `balance` môže byť `null` (partial entry je OK)
-- Net worth = SUM všetkých aktívnych účtov za mesiac (null = 0 pre výpočet)
+- Kompletnosť mesiaca sa riadi `trackingStartMonth`/`closedAt`; missing účet nie je platná nula.
+- Net worth sa zobrazuje aj čiastkovo, ale delta sa počíta iba medzi dvoma kompletnými mesiacmi.
+- Do EUR net worth sa bez kurzového prepočtu nezapočítavajú účty v cudzej mene.
 - Net worth po záväzkoch = net worth - SUM(liability.remaining)
 
 ### Zárobky
 - Každý zdroj má vlastné `IncomeEntry` per mesiac
 - JOJ má extra `JojDetail` s breakdown streamov
-- `savings_rate` = SUM(InvestmentEntry.amountAdded za mesiac) / SUM(IncomeEntry.amount za mesiac) × 100
+- `savings_rate` = SUM(InvestmentContribution.amount za mesiac) / SUM(IncomeEntry.amount za mesiac) × 100
+- Hodnota nad 100 % je platná a nesmie sa orezať; môže ísť o investovanie staršej hotovosti.
 
 ### Investície
-- TWRR výpočet je v `lib/calculations.ts`
-- Market data sa fetchuje cez Yahoo Finance (yahoo-finance2) — cache 6h v SQLite
-- Refresh market dát: manuálne tlačidlo + automaticky pri každom otvorení investments stránky (ak cache > 6h)
+- Aktuálny produkt eviduje mesačné investované príspevky v `InvestmentContribution`.
+- `RECURRING` príspevok sa v ďalšom mesiaci zobrazí ako návrh a do štatistík vstúpi až po uložení.
+- Staré `Investment` a `InvestmentEntry` záznamy ostávajú v databáze ako legacy portfólio, ale aktuálne UI ich nepoužíva.
+- Market quotes a TWRR nie sú súčasťou aktuálneho produktu.
 
 ### JOJ alert
 - Ak `JojDetail.diff` existuje a `Math.abs(diff) > 5` → badge v navigácii + push notifikácia
 
 ### Push notifikácie
 - Cron: `0 9 2 * *` → odošle push "Čas zadať financie za [mesiac]"
-- Klik na notifikáciu → otvorí `/snapshots?month=YYYY-MM`
+- Klik na notifikáciu → otvorí `/finance/snapshots?month=YYYY-MM`
 
 ## Štýlové konvencie
 - Server Components kde sa dá, Client Components len kde treba interaktivitu

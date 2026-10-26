@@ -69,18 +69,7 @@ export function MonthPicker({ label, value, onChange, className = '' }: MonthPic
   const wrapperRef = useRef<HTMLDivElement>(null)
   const parsedValue = useMemo(() => parseMonthKey(value), [value])
   const [open, setOpen] = useState(false)
-  const [mounted, setMounted] = useState(false)
   const [year, setYear] = useState(parsedValue?.year ?? new Date().getUTCFullYear())
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (parsedValue) {
-      setYear(parsedValue.year)
-    }
-  }, [parsedValue?.year])
 
   useEffect(() => {
     function onPointerDown(event: MouseEvent) {
@@ -93,26 +82,14 @@ export function MonthPicker({ label, value, onChange, className = '' }: MonthPic
     return () => document.removeEventListener('mousedown', onPointerDown)
   }, [])
 
-  if (!mounted) {
-    return (
-      <div ref={wrapperRef} className={`relative inline-block text-left ${className}`}>
-        <div className="w-full rounded-2xl border border-zinc-200 bg-white px-3 py-3 text-left text-zinc-900 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100">
-          <div className="space-y-1">
-            <p className="truncate text-base font-semibold capitalize">{formatMonthLabel(value)}</p>
-            {label ? (
-              <p className="text-[11px] uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">{label}</p>
-            ) : null}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div ref={wrapperRef} className={`relative inline-block text-left ${className}`}>
       <button
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => {
+          if (!open && parsedValue) setYear(parsedValue.year)
+          setOpen((prev) => !prev)
+        }}
         className="group inline-flex w-full items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white px-3 py-3 text-left text-zinc-900 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:border-zinc-700 dark:hover:bg-zinc-900"
         aria-expanded={open}
         aria-label={label ? `${label}: ${formatMonthLabel(value)}` : `Selected month: ${formatMonthLabel(value)}`}

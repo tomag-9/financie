@@ -167,37 +167,64 @@ export async function POST(request: Request) {
   const expectedTotal = toDecimal(expectedTotalNum)
   const diff = receivedTotal ? toDecimal(receivedTotal.toNumber() - expectedTotalNum) : null
 
-  const detail = await prisma.jojDetail.upsert({
-    where: { month: month.date },
-    create: {
-      month: month.date,
-      streamCount,
-      ratePerStream: toDecimal(ratePerStream),
-      tvHonorar: toDecimal(tvHonorar),
-      bonus: toDecimal(bonus),
-      expectedTotal,
-      receivedTotal,
-      diff,
-    },
-    update: {
-      streamCount,
-      ratePerStream: toDecimal(ratePerStream),
-      tvHonorar: toDecimal(tvHonorar),
-      bonus: toDecimal(bonus),
-      expectedTotal,
-      receivedTotal,
-      diff,
-    },
-    select: {
-      month: true,
-      streamCount: true,
-      ratePerStream: true,
-      tvHonorar: true,
-      bonus: true,
-      expectedTotal: true,
-      receivedTotal: true,
-      diff: true,
-    },
+  const detail = await prisma.$transaction(async (tx) => {
+    const saved = await tx.jojDetail.upsert({
+      where: { month: month.date },
+      create: {
+        month: month.date,
+        streamCount,
+        ratePerStream: toDecimal(ratePerStream),
+        tvHonorar: toDecimal(tvHonorar),
+        bonus: toDecimal(bonus),
+        expectedTotal,
+        receivedTotal,
+        diff,
+      },
+      update: {
+        streamCount,
+        ratePerStream: toDecimal(ratePerStream),
+        tvHonorar: toDecimal(tvHonorar),
+        bonus: toDecimal(bonus),
+        expectedTotal,
+        receivedTotal,
+        diff,
+      },
+      select: {
+        month: true,
+        streamCount: true,
+        ratePerStream: true,
+        tvHonorar: true,
+        bonus: true,
+        expectedTotal: true,
+        receivedTotal: true,
+        diff: true,
+      },
+    })
+
+    // A received JOJ payout is income, so keep both views in sync atomically.
+    if (receivedTotal !== null) {
+      const sources = await tx.incomeSource.findMany({ select: { id: true, name: true } })
+      let jojSource = sources.find((source) => source.name.trim().toLocaleLowerCase('sk-SK') === 'joj')
+      if (!jojSource) {
+        jojSource = await tx.incomeSource.create({
+          data: { name: 'JOJ', color: '#7c3aed', isActive: true },
+          select: { id: true, name: true },
+        })
+      }
+
+      await tx.incomeEntry.upsert({
+        where: { sourceId_month: { sourceId: jojSource.id, month: month.date } },
+        create: {
+          sourceId: jojSource.id,
+          month: month.date,
+          amount: receivedTotal,
+          note: 'Synchronizované z JOJ detailu',
+        },
+        update: { amount: receivedTotal },
+      })
+    }
+
+    return saved
   })
 
   return NextResponse.json({

@@ -20,6 +20,16 @@ export type MonthlyNetWorthPoint = {
   netWorth: number
   cashTotal: number
   accountTotals: MonthlyAccountTotal[]
+  filledAccountCount: number
+  expectedAccountCount: number
+  missingAccountCount: number
+  isComplete: boolean
+}
+
+export type ExpectedAccountPeriod = {
+  accountId: string
+  trackingStartMonth: Date | null
+  closedAt: Date | null
 }
 
 export type MoneyEntryForCalculation = {
@@ -33,34 +43,6 @@ export type MonthlySavingsPoint = {
   totalIncome: number
   totalInvested: number
   savingsRate: number | null
-}
-
-export type PortfolioPositionForCalculation = {
-  units: number
-  currentPrice: number | null
-}
-
-export type PortfolioUnrealizedResult = {
-  gain: number
-  gainPct: number | null
-}
-
-export type MonthlyPortfolioFlow = {
-  month: Date
-  investmentId: string
-  ticker: string
-  unitsAdded: number
-  amountAdded: number
-}
-
-export type MarketQuoteForCalculation = {
-  price: number
-}
-
-export type MonthlyPortfolioEntry = {
-  month: Date
-  portfolioValue: number
-  cashFlow: number
 }
 
 export function toMonthKey(date: Date): string {
@@ -83,7 +65,11 @@ export function parseYearMonth(value: string | undefined): Date | null {
   return new Date(Date.UTC(year, month - 1, 1))
 }
 
-export function calculateMonthlyNetWorth(points: SnapshotForCalculation[]): MonthlyNetWorthPoint[] {
+export function calculateMonthlyNetWorth(
+  points: SnapshotForCalculation[],
+  expectedAccounts?: ExpectedAccountPeriod[],
+): MonthlyNetWorthPoint[] {
+  const fallbackExpectedIds = new Set(points.map((point) => point.accountId))
   const byMonth = new Map<
     string,
     {
@@ -91,6 +77,7 @@ export function calculateMonthlyNetWorth(points: SnapshotForCalculation[]): Mont
       netWorth: number
       cashTotal: number
       byAccount: Map<string, MonthlyAccountTotal>
+      filledAccountIds: Set<string>
     }
   >()
 
@@ -105,12 +92,14 @@ export function calculateMonthlyNetWorth(points: SnapshotForCalculation[]): Mont
         netWorth: 0,
         cashTotal: 0,
         byAccount: new Map<string, MonthlyAccountTotal>(),
+        filledAccountIds: new Set<string>(),
       }
 
     monthBucket.netWorth += amount
-    if (point.accountType === 'CASH') {
+    if (point.accountType === 'CASH' || point.accountType === 'BANK') {
       monthBucket.cashTotal += amount
     }
+    if (point.balance !== null) monthBucket.filledAccountIds.add(point.accountId)
 
     const accountBucket =
       monthBucket.byAccount.get(point.accountId) ??
@@ -128,18 +117,38 @@ export function calculateMonthlyNetWorth(points: SnapshotForCalculation[]): Mont
 
   return [...byMonth.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(([monthKey, value]) => ({
-      monthKey,
-      monthDate: value.monthDate,
-      netWorth: value.netWorth,
-      cashTotal: value.cashTotal,
-      accountTotals: [...value.byAccount.values()].sort((left, right) => {
+    .map(([monthKey, value]) => {
+      const expectedIds = new Set(
+        expectedAccounts
+          ? expectedAccounts
+              .filter((account) => {
+                const monthTime = value.monthDate.getTime()
+                const startsInTime = account.trackingStartMonth === null || account.trackingStartMonth.getTime() <= monthTime
+                const notClosed = account.closedAt === null || account.closedAt.getTime() > monthTime
+                return startsInTime && notClosed
+              })
+              .map((account) => account.accountId)
+          : fallbackExpectedIds,
+      )
+      const filledAccountCount = [...value.filledAccountIds].filter((id) => expectedIds.has(id)).length
+      const expectedAccountCount = expectedIds.size
+      return {
+        monthKey,
+        monthDate: value.monthDate,
+        netWorth: value.netWorth,
+        cashTotal: value.cashTotal,
+        filledAccountCount,
+        expectedAccountCount,
+        missingAccountCount: Math.max(expectedAccountCount - filledAccountCount, 0),
+        isComplete: filledAccountCount === expectedAccountCount,
+        accountTotals: [...value.byAccount.values()].sort((left, right) => {
         if (left.accountSortOrder !== right.accountSortOrder) {
           return left.accountSortOrder - right.accountSortOrder
         }
         return left.accountName.localeCompare(right.accountName, 'sk-SK')
-      }),
-    }))
+        }),
+      }
+    })
 }
 
 export function calculateMonthlyDelta(currentNetWorth: number, previousNetWorth: number): number {
@@ -159,8 +168,7 @@ export function calculateSavingsRate(totalInvested: number, totalIncome: number)
     return null
   }
 
-  const rawRate = (totalInvested / totalIncome) * 100
-  return Math.max(0, Math.min(rawRate, 100))
+  return (totalInvested / totalIncome) * 100
 }
 
 export function calculateSavingsRateYTD(points: MonthlySavingsPoint[]): number | null {
@@ -217,104 +225,4 @@ export function calculateMonthlySavingsSeries(
       totalInvested: value.totalInvested,
       savingsRate: calculateSavingsRate(value.totalInvested, value.totalIncome),
     }))
-}
-
-export function calculatePortfolioValue(positions: PortfolioPositionForCalculation[]): number {
-  return positions.reduce((acc, position) => {
-    if (position.currentPrice === null) {
-      return acc
-    }
-    return acc + position.units * position.currentPrice
-  }, 0)
-}
-
-export function calculatePortfolioUnrealizedGain(
-  totalPortfolioValue: number,
-  totalCostBasis: number,
-): PortfolioUnrealizedResult {
-  const gain = totalPortfolioValue - totalCostBasis
-  if (totalCostBasis === 0) {
-    return { gain, gainPct: null }
-  }
-
-  return {
-    gain,
-    gainPct: (gain / totalCostBasis) * 100,
-  }
-}
-
-export function buildMonthlyPortfolioSeries(
-  flows: MonthlyPortfolioFlow[],
-  quoteByTicker: Map<string, MarketQuoteForCalculation>,
-): MonthlyPortfolioEntry[] {
-  const byMonth = new Map<string, MonthlyPortfolioFlow[]>()
-
-  for (const flow of flows) {
-    const key = toMonthKey(flow.month)
-    const bucket = byMonth.get(key) ?? []
-    bucket.push(flow)
-    byMonth.set(key, bucket)
-  }
-
-  const months = [...byMonth.keys()].sort((left, right) => left.localeCompare(right))
-  const cumulativeUnits = new Map<string, number>()
-  const tickerByInvestment = new Map<string, string>()
-  const result: MonthlyPortfolioEntry[] = []
-
-  for (const monthKey of months) {
-    const monthFlows = byMonth.get(monthKey) ?? []
-    let cashFlow = 0
-
-    for (const flow of monthFlows) {
-      tickerByInvestment.set(flow.investmentId, flow.ticker)
-      const currentUnits = cumulativeUnits.get(flow.investmentId) ?? 0
-      cumulativeUnits.set(flow.investmentId, currentUnits + flow.unitsAdded)
-      cashFlow += flow.amountAdded
-    }
-
-    let portfolioValue = 0
-    for (const [investmentId, units] of cumulativeUnits.entries()) {
-      const ticker = tickerByInvestment.get(investmentId)
-      if (!ticker) continue
-
-      const quote = quoteByTicker.get(ticker)
-      if (!quote) continue
-
-      portfolioValue += units * quote.price
-    }
-
-    const monthDate = monthFlows[0]?.month ?? parseYearMonth(monthKey) ?? new Date()
-    result.push({
-      month: new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth(), 1)),
-      portfolioValue,
-      cashFlow,
-    })
-  }
-
-  return result
-}
-
-export function calculateTWRR(entries: MonthlyPortfolioEntry[]): number | null {
-  if (entries.length < 2) {
-    return null
-  }
-
-  const normalized = [...entries].sort((left, right) => left.month.getTime() - right.month.getTime())
-  let twrr = 1
-  let hasValidPeriod = false
-
-  for (let index = 1; index < normalized.length; index += 1) {
-    const prev = normalized[index - 1]
-    const curr = normalized[index]
-    const beginValue = prev.portfolioValue + curr.cashFlow
-    if (beginValue <= 0) continue
-
-    const subReturn = curr.portfolioValue / beginValue
-    if (!Number.isFinite(subReturn) || subReturn <= 0) continue
-
-    twrr *= subReturn
-    hasValidPeriod = true
-  }
-
-  return hasValidPeriod ? twrr - 1 : null
 }

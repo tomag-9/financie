@@ -247,7 +247,7 @@ export default function IncomePage() {
             Total {currencyFormatter.format(totalIncome)}
           </span>
           <Link
-            href="/income/joj"
+            href="/finance/income/joj"
             className="inline-flex items-center gap-1 rounded-full border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800"
           >
             {icon('M6 19V5l12 7-12 7Z')}

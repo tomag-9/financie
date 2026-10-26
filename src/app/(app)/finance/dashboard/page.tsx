@@ -39,7 +39,8 @@ type PageProps = {
 	}>
 }
 
-function formatDeltaCurrency(value: number): string {
+function formatDeltaCurrency(value: number | null): string {
+	if (value === null) return 'N/A'
 	const sign = value > 0 ? '+' : ''
 	return `${sign}${currencyFormatter.format(value)}`
 }
@@ -56,13 +57,8 @@ function formatDeltaPct(value: number | null): string {
 export default async function FinanceDashboardPage({ searchParams }: PageProps) {
 	const resolvedSearchParams = searchParams ? await searchParams : undefined
 
-	const [snapshots, liabilitiesAggregate] = await Promise.all([
+	const [snapshots, activeAccounts, liabilitiesAggregate] = await Promise.all([
 		prisma.snapshot.findMany({
-			where: {
-				account: {
-					isActive: true,
-				},
-			},
 			select: {
 				month: true,
 				balance: true,
@@ -71,6 +67,7 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 					select: {
 						name: true,
 						type: true,
+						currency: true,
 						sortOrder: true,
 					},
 				},
@@ -78,6 +75,9 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 			orderBy: {
 				month: 'asc',
 			},
+		}),
+		prisma.account.findMany({
+			select: { id: true, currency: true, trackingStartMonth: true, closedAt: true },
 		}),
 		prisma.liability.aggregate({
 			where: {
@@ -89,7 +89,7 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 		}),
 	])
 
-	const [incomeEntries, investmentEntries, settings] = await Promise.all([
+	const [incomeEntries, investmentContributions, settings] = await Promise.all([
 		prisma.incomeEntry.findMany({
 			orderBy: { month: 'asc' },
 			select: {
@@ -97,11 +97,11 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 				amount: true,
 			},
 		}),
-		prisma.investmentEntry.findMany({
+		prisma.investmentContribution.findMany({
 			orderBy: { month: 'asc' },
 			select: {
 				month: true,
-				amountAdded: true,
+				amount: true,
 			},
 		}),
 		prisma.settings.findUnique({
@@ -120,20 +120,27 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 		orderBy: [{ dueDate: 'asc' }, { createdAt: 'asc' }],
 	})
 
+	const eurAccounts = activeAccounts.filter((account) => account.currency === 'EUR')
+	const unsupportedCurrencyAccounts = activeAccounts.filter((account) => account.currency !== 'EUR' && account.closedAt === null)
 	const monthlySeries = calculateMonthlyNetWorth(
-		snapshots.map((snapshot) => ({
+		snapshots.filter((snapshot) => snapshot.account.currency === 'EUR').map((snapshot) => ({
 			month: snapshot.month,
 			accountId: snapshot.accountId,
 			accountName: snapshot.account.name,
 			accountType: snapshot.account.type,
 			accountSortOrder: snapshot.account.sortOrder,
 			balance: snapshot.balance?.toNumber() ?? null,
-		}))
+		})),
+		eurAccounts.map((account) => ({
+			accountId: account.id,
+			trackingStartMonth: account.trackingStartMonth,
+			closedAt: account.closedAt,
+		})),
 	)
 
 	const monthlySavings = calculateMonthlySavingsSeries(
 		incomeEntries.map((item) => ({ month: item.month, amount: item.amount.toNumber() })),
-		investmentEntries.map((item) => ({ month: item.month, amount: item.amountAdded.toNumber() })),
+		investmentContributions.map((item) => ({ month: item.month, amount: item.amount.toNumber() })),
 	)
 
 	const activeLiabilitiesTotal = liabilitiesAggregate._sum.remaining?.toNumber() ?? 0
@@ -156,51 +163,56 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 	}
 
 	const selectedPoint = monthlySeries[selectedIndex]
+	const isCurrentMonth = selectedPoint.monthKey === toMonthKey(new Date())
+	const visibleMonthlySeries = monthlySeries.slice(0, selectedIndex + 1)
+	const visibleMonthlySavings = monthlySavings.filter((point) => point.monthKey <= selectedPoint.monthKey)
 	const selectedSavings = monthlySavings.find((point) => point.monthKey === selectedPoint.monthKey)
 	const previousPoint = selectedIndex > 0 ? monthlySeries[selectedIndex - 1] : null
-	const monthlyDelta = calculateMonthlyDelta(selectedPoint.netWorth, previousPoint?.netWorth ?? 0)
-	const monthlyDeltaPct = calculateMonthlyDeltaPct(selectedPoint.netWorth, previousPoint?.netWorth ?? 0)
-	const netWorthAfterLiabilities = selectedPoint.netWorth - activeLiabilitiesTotal
+	const canCompare = selectedPoint.isComplete && previousPoint?.isComplete === true
+	const monthlyDelta = canCompare ? calculateMonthlyDelta(selectedPoint.netWorth, previousPoint.netWorth) : null
+	const monthlyDeltaPct = canCompare ? calculateMonthlyDeltaPct(selectedPoint.netWorth, previousPoint.netWorth) : null
+	const netWorthAfterLiabilities = isCurrentMonth ? selectedPoint.netWorth - activeLiabilitiesTotal : null
 	const totalIncomeForMonth = selectedSavings?.totalIncome ?? 0
 	const totalInvestedForMonth = selectedSavings?.totalInvested ?? 0
 	const savingsRateForMonth = calculateSavingsRate(totalInvestedForMonth, totalIncomeForMonth)
 
 	const ytdYear = selectedPoint.monthDate.getUTCFullYear()
 	const ytdSavingsRate = calculateSavingsRateYTD(
-		monthlySavings.filter((point) => point.monthDate.getUTCFullYear() === ytdYear),
+		visibleMonthlySavings.filter((point) => point.monthDate.getUTCFullYear() === ytdYear),
 	)
 
 	const settingsData = (settings?.data ?? {}) as SettingsData
 	const savingsGoalPct = settingsData.savings_goal_pct ?? 20
-	const goalProgress = savingsRateForMonth === null ? 0 : Math.min((savingsRateForMonth / savingsGoalPct) * 100, 100)
+	const goalProgress = savingsRateForMonth === null ? 0 : savingsGoalPct <= 0 ? 100 : Math.min((savingsRateForMonth / savingsGoalPct) * 100, 100)
 
-	const lineData = monthlySeries.map((point) => ({
+	const lineData = visibleMonthlySeries.filter((point) => point.isComplete).map((point) => ({
 		monthLabel: shortMonthFormatter.format(point.monthDate),
 		netWorth: point.netWorth,
 	}))
 
-	const savingsTrendData = monthlySavings.slice(-12).map((point) => ({
+	const savingsTrendData = visibleMonthlySavings.slice(-12).map((point) => ({
 		monthLabel: shortMonthFormatter.format(point.monthDate),
 		savingsRate: point.savingsRate ?? 0,
 	}))
 
-	const cashFlowData = monthlySavings.slice(-12).map((point) => ({
+	const cashFlowData = visibleMonthlySavings.slice(-12).map((point) => ({
 		monthLabel: shortMonthFormatter.format(point.monthDate),
 		income: point.totalIncome,
 		invested: point.totalInvested,
 	}))
 
-	const changeData = monthlySeries.slice(-12).map((point) => {
+	const changeData = visibleMonthlySeries.slice(-12).flatMap((point) => {
 		const absoluteIndex = monthlySeries.findIndex((seriesPoint) => seriesPoint.monthKey === point.monthKey)
 		const previous = absoluteIndex > 0 ? monthlySeries[absoluteIndex - 1] : null
-		return {
+		if (!point.isComplete || !previous?.isComplete) return []
+		return [{
 			monthLabel: shortMonthFormatter.format(point.monthDate),
-			change: previous ? point.netWorth - previous.netWorth : 0,
-		}
+			change: point.netWorth - previous.netWorth,
+		}]
 	})
 
 	const quarterlyCashFlowData = Array.from(
-		monthlySavings.reduce((quarters, point) => {
+		visibleMonthlySavings.reduce((quarters, point) => {
 			const year = point.monthDate.getUTCFullYear()
 			const quarter = Math.floor(point.monthDate.getUTCMonth() / 3) + 1
 			const key = `${year}-Q${quarter}`
@@ -214,7 +226,7 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 	).slice(-4)
 
 	const quarterlyChangeData = Array.from(
-		monthlySeries.reduce((quarters, point) => {
+		visibleMonthlySeries.filter((point) => point.isComplete).reduce((quarters, point) => {
 			const year = point.monthDate.getUTCFullYear()
 			const quarter = Math.floor(point.monthDate.getUTCMonth() / 3) + 1
 			const key = `${year}-Q${quarter}`
@@ -234,21 +246,21 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 		}))
 		.slice(-4)
 
-	const latestPoint = monthlySeries[monthlySeries.length - 1]
-	const distributionData = latestPoint.accountTotals
+	const distributionData = selectedPoint.accountTotals
 		.map((account) => ({
 			accountName: account.accountName,
 			amount: account.amount,
 		}))
 		.sort((left, right) => right.amount - left.amount)
 
-	const recentRows = monthlySeries
+	const recentRows = visibleMonthlySeries
 		.slice(-3)
 		.map((point) => {
 			const pointIndex = monthlySeries.findIndex((seriesPoint) => seriesPoint.monthKey === point.monthKey)
 			const prev = pointIndex > 0 ? monthlySeries[pointIndex - 1] : null
-			const delta = calculateMonthlyDelta(point.netWorth, prev?.netWorth ?? 0)
-			const deltaPct = calculateMonthlyDeltaPct(point.netWorth, prev?.netWorth ?? 0)
+			const rowCanCompare = point.isComplete && prev?.isComplete === true
+			const delta = rowCanCompare ? calculateMonthlyDelta(point.netWorth, prev.netWorth) : null
+			const deltaPct = rowCanCompare ? calculateMonthlyDeltaPct(point.netWorth, prev.netWorth) : null
 
 			return {
 				monthDate: point.monthDate,
@@ -263,7 +275,7 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 	// We need the current time to warn about upcoming due dates.
 	// eslint-disable-next-line react-hooks/purity
 	const nowUtc = Date.now()
-	const dueSoonLiabilities = activeLiabilities
+	const dueSoonLiabilities = (isCurrentMonth ? activeLiabilities : [])
 		.map((liability) => {
 			const dueDateMs = liability.dueDate ? liability.dueDate.getTime() : null
 			if (dueDateMs === null) return null
@@ -297,13 +309,13 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 				</article>
 
 				<article className="min-w-0 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
-					<p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Cash total</p>
+					<p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Liquid assets</p>
 					<p className="mt-2 text-lg font-semibold leading-none sm:text-2xl">{currencyFormatter.format(selectedPoint.cashTotal)}</p>
 				</article>
 
 				<article className="min-w-0 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
 					<p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Monthly change</p>
-					<p className={`mt-2 text-lg font-semibold leading-none sm:text-2xl ${monthlyDelta > 0 ? 'text-emerald-600 dark:text-emerald-400' : monthlyDelta < 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
+					<p className={`mt-2 text-lg font-semibold leading-none sm:text-2xl ${monthlyDelta !== null && monthlyDelta > 0 ? 'text-emerald-600 dark:text-emerald-400' : monthlyDelta !== null && monthlyDelta < 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
 						{formatDeltaCurrency(monthlyDelta)}
 					</p>
 				</article>
@@ -317,9 +329,22 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 
 				<article className="col-span-2 min-w-0 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:col-span-1 sm:p-4">
 					<p className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Net worth after liabilities</p>
-					<p className="mt-2 text-lg font-semibold leading-none sm:text-2xl">{currencyFormatter.format(netWorthAfterLiabilities)}</p>
+					<p className="mt-2 text-lg font-semibold leading-none sm:text-2xl">{netWorthAfterLiabilities === null ? 'N/A' : currencyFormatter.format(netWorthAfterLiabilities)}</p>
+					{!isCurrentMonth ? <p className="mt-1 text-[10px] text-zinc-500">Záväzky nemajú historické snapshoty</p> : null}
 				</article>
 			</div>
+
+			{!selectedPoint.isComplete ? (
+				<div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+					Tento mesiac nie je kompletný: vyplnených je {selectedPoint.filledAccountCount} z {selectedPoint.expectedAccountCount} sledovaných účtov. Net worth je iba čiastkový a mesačná zmena sa nepočíta.
+				</div>
+			) : null}
+
+			{unsupportedCurrencyAccounts.length > 0 ? (
+				<div className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-200">
+					{unsupportedCurrencyAccounts.length} účet/účty v cudzej mene nie sú zahrnuté do EUR net worth, kým nebude doplnený kurzový prepočet.
+				</div>
+			) : null}
 
 			{dueSoonLiabilities.length > 0 ? (
 				<div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
@@ -341,7 +366,7 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 				</div>
 			) : null}
 
-			<NetWorthChart lineData={lineData} distributionData={distributionData} />
+			<NetWorthChart lineData={lineData} distributionData={distributionData} distributionLabel={monthFormatter.format(selectedPoint.monthDate)} />
 
 			<FinanceAnalyticsCharts
 				cashFlowData={cashFlowData}
@@ -399,7 +424,7 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 								<p className="text-zinc-500 dark:text-zinc-400">Cash</p>
 								<p className="text-right font-medium text-zinc-800 dark:text-zinc-200">{currencyFormatter.format(row.cashTotal)}</p>
 								<p className="text-zinc-500 dark:text-zinc-400">Delta</p>
-								<p className={`text-right font-medium ${row.delta > 0 ? 'text-emerald-600 dark:text-emerald-400' : row.delta < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-zinc-800 dark:text-zinc-200'}`}>
+								<p className={`text-right font-medium ${row.delta !== null && row.delta > 0 ? 'text-emerald-600 dark:text-emerald-400' : row.delta !== null && row.delta < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-zinc-800 dark:text-zinc-200'}`}>
 									{formatDeltaCurrency(row.delta)}
 								</p>
 								<p className="text-zinc-500 dark:text-zinc-400">Delta %</p>
@@ -428,7 +453,7 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 									<td className="py-2 pr-3">{monthFormatter.format(row.monthDate)}</td>
 									<td className="py-2 pr-3">{currencyFormatter.format(row.netWorth)}</td>
 									<td className="py-2 pr-3">{currencyFormatter.format(row.cashTotal)}</td>
-									<td className={`py-2 pr-3 ${row.delta > 0 ? 'text-emerald-600 dark:text-emerald-400' : row.delta < 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
+									<td className={`py-2 pr-3 ${row.delta !== null && row.delta > 0 ? 'text-emerald-600 dark:text-emerald-400' : row.delta !== null && row.delta < 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
 										{formatDeltaCurrency(row.delta)}
 									</td>
 									<td className={`py-2 ${row.deltaPct !== null && row.deltaPct > 0 ? 'text-emerald-600 dark:text-emerald-400' : row.deltaPct !== null && row.deltaPct < 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
