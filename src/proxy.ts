@@ -10,6 +10,7 @@ export default auth((req) => {
   const isPublic =
     pathname.startsWith('/login') ||
     pathname.startsWith('/api/auth') ||
+    pathname === '/api/health' ||
     pathname === '/manifest.json' ||
     pathname === '/sw.js'
 

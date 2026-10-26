@@ -3,6 +3,8 @@ import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
 import type { SettingsData } from '@/types'
+import { clearRateLimit, isRateLimited, rateLimitKey, recordRateLimitFailure } from '@/lib/rate-limit'
+import { writeAppLog } from '@/lib/app-log'
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
   providers: [
@@ -10,8 +12,13 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       credentials: {
         password: { label: 'Heslo', type: 'password' },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (!credentials?.password) return null
+        const key = rateLimitKey(request.headers, 'password')
+        if (isRateLimited(key)) {
+          await writeAppLog('auth', 'warn', 'Login blocked by rate limit')
+          return null
+        }
 
         const settings = await prisma.settings.findUnique({
           where: { id: 'singleton' },
@@ -38,7 +45,14 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         }
 
         const isValid = await bcrypt.compare(credentials.password as string, passwordHash)
-        if (!isValid) return null
+        if (!isValid) {
+          recordRateLimitFailure(key)
+          await writeAppLog('auth', 'warn', 'Invalid password attempt')
+          return null
+        }
+
+        clearRateLimit(key)
+        await writeAppLog('auth', 'info', 'Password authentication succeeded')
 
         return {
           id: 'tomi',

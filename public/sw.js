@@ -1,4 +1,4 @@
-const CACHE_NAME = 'financie-offline-v1'
+const CACHE_NAME = 'financie-offline-v2'
 const OFFLINE_URL = '/offline.html'
 
 self.addEventListener('install', (event) => {
@@ -33,8 +33,9 @@ self.addEventListener('push', (event) => {
   const title = payload?.title || 'Financie'
   const options = {
     body: payload?.body || '',
-    icon: '/next.svg',
-    badge: '/next.svg',
+    icon: '/tomag-icon.svg',
+    badge: '/tomag-icon.svg',
+    tag: payload?.category || 'financie-general',
     data: {
       url: payload?.url || '/finance/snapshots',
     },
@@ -67,9 +68,21 @@ self.addEventListener('fetch', (event) => {
   if (event.request.mode !== 'navigate') return
 
   event.respondWith(
-    fetch(event.request).catch(async () => {
-      const cache = await caches.open(CACHE_NAME)
-      return (await cache.match(OFFLINE_URL)) ?? Response.error()
-    }),
+    fetch(event.request)
+      .then(async (response) => {
+        if (new URL(event.request.url).pathname === '/home' && response.ok) {
+          const cache = await caches.open(CACHE_NAME)
+          await cache.put('/home', response.clone())
+        }
+        return response
+      })
+      .catch(async () => {
+        const cache = await caches.open(CACHE_NAME)
+        if (new URL(event.request.url).pathname === '/home') {
+          const dashboard = await cache.match('/home')
+          if (dashboard) return dashboard
+        }
+        return (await cache.match(OFFLINE_URL)) ?? Response.error()
+      }),
   )
 })

@@ -1,12 +1,14 @@
 import Link from 'next/link'
 import { AuthError } from 'next-auth'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { auth, signIn, signOut } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { consumeBackupCode, verifyTotpToken } from '@/lib/totp'
 import { BrandMark } from '@/components/ui/brand-mark'
 import type { SettingsData } from '@/types'
+import { clearRateLimit, isRateLimited, rateLimitKey, recordRateLimitFailure } from '@/lib/rate-limit'
+import { writeAppLog } from '@/lib/app-log'
 
 function getSingleValue(value?: string | string[]): string | undefined {
   if (Array.isArray(value)) {
@@ -66,6 +68,9 @@ async function verifyTotpAction(formData: FormData): Promise<void> {
   if (!code) {
     redirect(`/login?step=totp&error=missing_code&callbackUrl=${encodeURIComponent(callbackUrl)}`)
   }
+  const requestHeaders = await headers()
+  const limitKey = rateLimitKey(requestHeaders, 'totp')
+  if (isRateLimited(limitKey)) redirect(`/login?step=totp&error=rate_limited&callbackUrl=${encodeURIComponent(callbackUrl)}`)
 
   const settings = await prisma.settings.findUnique({ where: { id: 'singleton' } })
   const data = (settings?.data ?? {}) as SettingsData
@@ -91,8 +96,13 @@ async function verifyTotpAction(formData: FormData): Promise<void> {
   }
 
   if (!isValid) {
+    recordRateLimitFailure(limitKey)
+    await writeAppLog('auth', 'warn', 'Invalid second-factor attempt')
     redirect(`/login?step=totp&error=invalid_code&callbackUrl=${encodeURIComponent(callbackUrl)}`)
   }
+
+  clearRateLimit(limitKey)
+  await writeAppLog('auth', 'info', 'Second-factor authentication succeeded', { usedBackup })
 
   if (usedBackup) {
     const updatedData: SettingsData = {
@@ -110,10 +120,10 @@ async function verifyTotpAction(formData: FormData): Promise<void> {
   const cookieStore = await cookies()
   cookieStore.set('totp_verified', '1', {
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: 'strict',
     secure: process.env.NODE_ENV === 'production',
     path: '/',
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: 60 * 60 * 12,
   })
 
   redirect(callbackUrl)
@@ -154,6 +164,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     if (error === 'invalid_credentials') return 'Invalid password.'
     if (error === 'missing_code') return 'Enter the 6-digit TOTP code or a backup code.'
     if (error === 'invalid_code') return 'Invalid TOTP or backup code.'
+    if (error === 'rate_limited') return 'Priveľa pokusov. Skús to znova o 15 minút.'
     return null
   })()
 
