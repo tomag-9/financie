@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { AppNav } from '@/components/ui/nav'
 import { BrandMark } from '@/components/ui/brand-mark'
+import { CommandPalette } from '@/components/ui/command-palette'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   let session = null
@@ -37,6 +38,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <BrandMark />
               </Link>
             </div>
+            <CommandPalette />
           </div>
         </header>
 

@@ -99,7 +99,7 @@ export function AppNav({ hasJojAlert }: NavProps) {
   const pathname = usePathname()
   const showFinanceNav = isFinancePath(pathname)
 
-  const items: NavItem[] = useMemo(
+  const financeItems: NavItem[] = useMemo(
     () => [
       { href: '/finance/dashboard', label: 'Dashboard', icon: 'M3 12h18M12 3v18' },
       { href: '/finance/snapshots', label: 'Snapshots', icon: 'M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z' },
@@ -110,9 +110,14 @@ export function AppNav({ hasJojAlert }: NavProps) {
     [hasJojAlert]
   )
 
-  if (!showFinanceNav) {
-    return null
-  }
+  const items: NavItem[] = showFinanceNav ? financeItems : [
+    { href: '/home', label: 'Prehľad', icon: 'M3 11 12 3l9 8v9H3v-9Zm6 9v-6h6v6' },
+    { href: '/finance/dashboard', label: 'Financie', icon: 'M4 18V9m5 9V5m5 13v-6m5 6V3' },
+    { href: '/ai-runner', label: 'AI alarmy', icon: 'M12 3v2m7 7h2M3 12h2m2-5 1.5 1.5M17 7l-1.5 1.5M8 21h8m-7-4h6a4 4 0 1 0-6 0Z' },
+    { href: '/proxmox', label: 'Proxmox', icon: 'M4 4h16v6H4V4Zm0 10h16v6H4v-6Zm3-7h.01M7 17h.01' },
+    { href: '/logs', label: 'Logy', icon: 'M6 3h9l3 3v15H6V3Zm3 7h6m-6 4h6m-6 4h4' },
+    { href: '/settings', label: 'Nastavenia', icon: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm0-5v2m0 14v2M3 12h2m14 0h2' },
+  ]
 
   return (
     <>
@@ -121,6 +126,7 @@ export function AppNav({ hasJojAlert }: NavProps) {
           <BrandMark />
           <ThemeToggle />
         </div>
+        {showFinanceNav ? <Link href="/home" className="mb-3 block px-3 text-xs font-semibold text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">← Všetky sekcie</Link> : null}
         <nav className="space-y-1">
           {items.map((item) => {
             const active = isActivePath(pathname, item.href)
@@ -147,9 +153,8 @@ export function AppNav({ hasJojAlert }: NavProps) {
         </nav>
       </aside>
 
-      {showFinanceNav ? (
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white/95 px-2 py-1 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 md:hidden">
-        <ul className="grid grid-cols-5 gap-1">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white/95 px-2 py-1 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 md:hidden">
+        <ul className={`grid gap-1 ${items.length === 5 ? 'grid-cols-5' : 'grid-cols-6'}`}>
           {items.map((item) => {
             const active = isActivePath(pathname, item.href)
             return (
@@ -174,7 +179,6 @@ export function AppNav({ hasJojAlert }: NavProps) {
           })}
         </ul>
       </nav>
-      ) : null}
     </>
   )
 }

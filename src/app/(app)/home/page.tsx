@@ -1,107 +1,62 @@
 import Link from 'next/link'
+import { prisma } from '@/lib/prisma'
 
-type HubCard = {
-  href: string
-  title: string
-  description: string
-  accent: string
-  iconPath: string
+export const dynamic = 'force-dynamic'
+
+function money(value: number) {
+  return new Intl.NumberFormat('sk-SK', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value)
 }
 
-const hubCards: HubCard[] = [
-  {
-    href: '/ai-runner',
-    title: 'AI runner',
-    description: 'Spusti a spravuj Claude alebo Codex alarmy.',
-    accent: 'from-emerald-500/20 via-emerald-500/10 to-transparent dark:from-emerald-400/20',
-    iconPath: 'M12 2l7 4v6c0 5-3.5 9.7-7 10-3.5-.3-7-5-7-10V6l7-4Zm0 5a3 3 0 0 0-3 3v1H8v6h8v-6h-1v-1a3 3 0 0 0-3-3Zm0 2a1 1 0 0 1 1 1v1h-2v-1a1 1 0 0 1 1-1Z',
-  },
-  {
-    href: '/finance/dashboard',
-    title: 'Financie',
-    description: 'Finančný dashboard so snapshotmi a trendami.',
-    accent: 'from-sky-500/20 via-sky-500/10 to-transparent dark:from-sky-400/20',
-    iconPath: 'M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Zm4 6 2.5 2.5L15 6l3 3',
-  },
-  {
-    href: '/logs',
-    title: 'Logs',
-    description: 'Prezeraj AI runner logy so sortovaním a filtrami.',
-    accent: 'from-amber-500/20 via-amber-500/10 to-transparent dark:from-amber-400/20',
-    iconPath: 'M7 4h10l3 4v12H4V4h3Zm0 0v4h10V4M8 12h8M8 16h5',
-  },
-  {
-    href: '/proxmox',
-    title: 'Proxmox',
-    description: 'Stav, štart, reštart a zastavenie LXC kontajnerov.',
-    accent: 'from-violet-500/20 via-violet-500/10 to-transparent dark:from-violet-400/20',
-    iconPath: 'M5 3h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 9h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2Zm2-5h.01M7 16h.01M11 7h7M11 16h7',
-  },
-  {
-    href: '/settings',
-    title: 'Settings',
-    description: 'Notifikácie, TOTP a systémové nastavenia.',
-    accent: 'from-zinc-500/20 via-zinc-500/10 to-transparent dark:from-zinc-400/20',
-    iconPath: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm8 4-2.2.7a6.8 6.8 0 0 1-.4 1l1.3 1.9-1.9 1.9-1.9-1.3a6.8 6.8 0 0 1-1 .4L12 20l-2.7-2.2a6.8 6.8 0 0 1-1-.4l-1.9 1.3-1.9-1.9 1.3-1.9a6.8 6.8 0 0 1-.4-1L4 12l2.2-.7a6.8 6.8 0 0 1 .4-1L5.3 8.4l1.9-1.9 1.9 1.3a6.8 6.8 0 0 1 1-.4L12 4l2.7 2.2a6.8 6.8 0 0 1 1 .4l1.9-1.3 1.9 1.9-1.3 1.9c.17.33.3.67.4 1L20 12Z',
-  },
-]
-
-function Icon({ path }: { path: string }) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-6 fill-none stroke-current stroke-[2.25]">
-      <path d={path} strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
+function monthLabel(value: Date | null) {
+  return value ? new Intl.DateTimeFormat('sk-SK', { month: 'long', year: 'numeric', timeZone: 'Europe/Bratislava' }).format(value) : 'bez dát'
 }
 
-function ArrowIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5 fill-none stroke-current stroke-[2.25]">
-      <path d="M5 12h14m-6-6 6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
+function Card({ href, title, value, detail, tone = 'zinc' }: { href: string; title: string; value: string; detail: string; tone?: 'zinc' | 'rose' | 'emerald' | 'sky' }) {
+  const colors = { zinc: 'from-zinc-500/10', rose: 'from-rose-500/15', emerald: 'from-emerald-500/15', sky: 'from-sky-500/15' }
+  return <Link href={href} className={`rounded-2xl border border-zinc-200 bg-gradient-to-br ${colors[tone]} to-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-800 dark:to-zinc-950`}>
+    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">{title}</p>
+    <p className="mt-3 text-2xl font-semibold tracking-tight">{value}</p>
+    <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{detail}</p>
+  </Link>
 }
 
-export default function HomePage() {
-  return (
-    <section className="relative overflow-hidden rounded-[2rem] border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 sm:p-6">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_34%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_28%),radial-gradient(circle_at_bottom,rgba(63,63,70,0.08),transparent_32%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.10),transparent_34%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.10),transparent_28%),radial-gradient(circle_at_bottom,rgba(63,63,70,0.10),transparent_32%)]" />
+export default async function HomePage() {
+  const now = new Date()
+  const dayAgo = new Date(now.getTime() - 86_400_000)
+  const [latestSnapshot, activeAccounts, liabilities, nextAlarms, errors, latestLogs] = await Promise.all([
+    prisma.snapshot.findFirst({ orderBy: { month: 'desc' }, select: { month: true } }),
+    prisma.account.count({ where: { isActive: true } }),
+    prisma.liability.aggregate({ where: { isActive: true }, _sum: { remaining: true } }),
+    prisma.aiAlarm.findMany({ where: { isEnabled: true }, orderBy: { time: 'asc' }, take: 3 }),
+    prisma.appLog.count({ where: { level: 'error', createdAt: { gte: dayAgo } } }),
+    prisma.appLog.findMany({ orderBy: { createdAt: 'desc' }, take: 4 }),
+  ])
+  const snapshotAge = latestSnapshot ? Math.round((now.getTime() - latestSnapshot.month.getTime()) / 2_592_000_000) : null
+  const remaining = liabilities._sum.remaining?.toNumber() ?? 0
 
-      <div className="relative space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500 dark:text-zinc-400">Start</p>
-        <h2 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-3xl">Vyber si sekciu</h2>
-        <p className="max-w-2xl text-sm text-zinc-600 dark:text-zinc-300">
-          Po prihlásení je tu len rýchly výber. Otvor AI runner, financie, Proxmox, logs alebo settings bez zbytočných grafov a šumu.
-        </p>
-      </div>
-
-      <div className="relative mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        {hubCards.map((card) => (
-          <Link
-            key={card.href}
-            href={card.href}
-            className="group relative overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-50 p-5 transition duration-200 hover:-translate-y-1 hover:border-zinc-300 hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-900/70 dark:hover:border-zinc-700"
-          >
-            <div className={`absolute inset-0 bg-gradient-to-br ${card.accent}`} aria-hidden="true" />
-            <div className="relative flex h-full flex-col justify-between gap-6">
-              <div className="flex items-start justify-between gap-3">
-                <div className="rounded-2xl border border-white/70 bg-white/80 p-3 text-zinc-900 shadow-sm backdrop-blur dark:border-zinc-700 dark:bg-zinc-950/80 dark:text-zinc-100">
-                  <Icon path={card.iconPath} />
-                </div>
-                <span className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white/80 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500 backdrop-blur dark:border-zinc-700 dark:bg-zinc-950/80 dark:text-zinc-400">
-                  Open
-                  <ArrowIcon />
-                </span>
-              </div>
-
-              <div className="space-y-2">
-                <h3 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">{card.title}</h3>
-                <p className="text-sm leading-6 text-zinc-600 dark:text-zinc-300">{card.description}</p>
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
+  return <div className="mx-auto max-w-7xl space-y-7">
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div><p className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500">Command center</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Prehľad aplikácie</h1><p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Najdôležitejší stav na jednom mieste.</p></div>
+      <div className="flex gap-2"><Link href="/finance/snapshots" className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900">Pridať snapshot</Link><Link href="/ai-runner" className="rounded-xl border border-zinc-300 px-4 py-2 text-sm font-semibold dark:border-zinc-700">Nový alarm</Link></div>
+    </div>
+    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <Card href="/finance/snapshots" title="Finančné dáta" value={monthLabel(latestSnapshot?.month ?? null)} detail={`${activeAccounts} aktívnych účtov${snapshotAge !== null && snapshotAge > 1 ? ` · dáta sú ${snapshotAge} mes. staré` : ''}`} tone={snapshotAge !== null && snapshotAge > 1 ? 'rose' : 'emerald'} />
+      <Card href="/finance/liabilities" title="Zostávajúce záväzky" value={money(remaining)} detail="Súčet aktívnych záväzkov" tone={remaining > 0 ? 'sky' : 'emerald'} />
+      <Card href="/ai-runner" title="Aktívne alarmy" value={String(nextAlarms.length)} detail={nextAlarms[0] ? `Najbližší čas ${nextAlarms[0].time}` : 'Žiadny alarm nečaká'} />
+      <Card href="/logs" title="Chyby za 24 hodín" value={String(errors)} detail={errors ? 'Vyžaduje kontrolu logov' : 'Systém bez nových chýb'} tone={errors ? 'rose' : 'emerald'} />
     </section>
-  )
+    <div className="grid gap-6 lg:grid-cols-[1.2fr_.8fr]">
+      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Pozornosť</p><h2 className="mt-1 text-xl font-semibold">Čo nasleduje</h2></div><Link href="/ai-runner" className="text-sm font-medium text-zinc-500 hover:text-zinc-900">Všetky alarmy →</Link></div>
+        <div className="mt-4 divide-y divide-zinc-100 dark:divide-zinc-800">
+          {nextAlarms.map((alarm) => <div key={alarm.id} className="flex items-center justify-between py-3"><div><p className="text-sm font-medium">{alarm.label || 'AI kontrola'}</p><p className="text-xs text-zinc-500">{alarm.isRepeat ? 'Opakovaný alarm' : alarm.date ? new Intl.DateTimeFormat('sk-SK').format(alarm.date) : 'Jednorazovo'}</p></div><span className="font-mono text-lg font-semibold">{alarm.time}</span></div>)}
+          {nextAlarms.length === 0 ? <p className="py-8 text-center text-sm text-zinc-500">Žiadne aktívne alarmy.</p> : null}
+        </div>
+      </section>
+      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="flex items-center justify-between"><h2 className="text-xl font-semibold">Posledné udalosti</h2><Link href="/logs" className="text-sm font-medium text-zinc-500 hover:text-zinc-900">Logy →</Link></div>
+        <div className="mt-4 space-y-3">{latestLogs.map((log) => <div key={log.id} className="flex gap-3"><span className={`mt-1.5 size-2 shrink-0 rounded-full ${log.level === 'error' ? 'bg-rose-500' : log.level === 'warn' ? 'bg-amber-500' : 'bg-emerald-500'}`} /><div><p className="text-sm font-medium">{log.message}</p><p className="text-xs text-zinc-500">{log.source} · {new Intl.DateTimeFormat('sk-SK', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Bratislava' }).format(log.createdAt)}</p></div></div>)}</div>
+      </section>
+    </div>
+  </div>
 }
