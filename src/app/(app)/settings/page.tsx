@@ -7,6 +7,9 @@ import { auth, signOut } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import type { SettingsData } from '@/types'
 
+// Settings reads user data from SQLite and must never run during image build.
+export const dynamic = 'force-dynamic'
+
 function IconLogout() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5 fill-none stroke-current stroke-[2.25]">
