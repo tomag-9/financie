@@ -175,8 +175,28 @@ model AiAlarm {
   lastTriggeredAt DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  runs            AiAlarmRun[]
 
   @@index([isEnabled, time])
+}
+
+model AiAlarmRun {
+  id           String    @id @default(cuid())
+  alarmId      String?
+  alarm        AiAlarm?  @relation(fields: [alarmId], references: [id], onDelete: SetNull)
+  alarmLabel   String?
+  trigger      String
+  status       String
+  targets      String
+  output       Json?
+  error        String?
+  scheduledFor DateTime?
+  startedAt    DateTime  @default(now())
+  finishedAt   DateTime?
+
+  @@unique([alarmId, scheduledFor, trigger])
+  @@index([startedAt])
+  @@index([status, startedAt])
 }
 
 enum AccountType {

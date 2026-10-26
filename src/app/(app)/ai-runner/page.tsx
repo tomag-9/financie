@@ -13,6 +13,7 @@ type Alarm = {
 	runClaude: boolean
 	runCodex: boolean
 	lastTriggeredAt: string | null
+	runs: Array<{ id: string; trigger: string; status: string; targets: string; error: string | null; startedAt: string; finishedAt: string | null }>
 }
 
 type AlarmPayload = {
@@ -84,6 +85,7 @@ export default function AiRunnerPage() {
 	const [isLoading, setIsLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 	const [saving, setSaving] = useState(false)
+	const [runningId, setRunningId] = useState<string | null>(null)
 	const [serverTime, setServerTime] = useState<ServerTimePayload | null>(null)
 
 	const [form, setForm] = useState<AlarmPayload>({
@@ -215,6 +217,23 @@ export default function AiRunnerPage() {
 		}
 
 		await loadAlarms()
+	}
+
+	async function runNow(id: string) {
+		setRunningId(id)
+		setError(null)
+		try {
+			const response = await fetch(`/api/alarms/${id}/run`, { method: 'POST' })
+			if (!response.ok) {
+				const payload = (await response.json()) as { error?: string }
+				throw new Error(payload.error ?? 'Spustenie alarmu zlyhalo.')
+			}
+			await loadAlarms({ silent: true })
+		} catch (runError) {
+			setError(runError instanceof Error ? runError.message : 'Spustenie alarmu zlyhalo.')
+		} finally {
+			setRunningId(null)
+		}
 	}
 
 	return (
@@ -381,6 +400,9 @@ export default function AiRunnerPage() {
 									</div>
 
 									<div className="flex flex-wrap items-center gap-2">
+										<button type="button" disabled={runningId === alarm.id} onClick={() => void runNow(alarm.id)} className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 transition hover:bg-sky-100 disabled:opacity-50 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-300">
+											{runningId === alarm.id ? 'Spúšťam…' : 'Spustiť teraz'}
+										</button>
 										<Toggle
 											checked={alarm.isEnabled}
 											onChange={(value) => void updateAlarm(alarm.id, { isEnabled: value })}
@@ -421,6 +443,7 @@ export default function AiRunnerPage() {
 											})
 										: 'Never'}
 								</div>
+								{alarm.runs.length > 0 ? <details className="mt-4 rounded-xl bg-zinc-50 p-3 text-xs dark:bg-zinc-900"><summary className="cursor-pointer font-semibold text-zinc-700 dark:text-zinc-300">História behov ({alarm.runs.length})</summary><div className="mt-3 space-y-2">{alarm.runs.map((run) => <div key={run.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-200 pt-2 first:border-0 first:pt-0 dark:border-zinc-800"><span><strong className={run.status === 'success' ? 'text-emerald-600' : run.status === 'failed' ? 'text-rose-600' : 'text-amber-600'}>{run.status}</strong> · {run.trigger} · {run.targets}</span><time>{new Date(run.startedAt).toLocaleString('sk-SK')}</time>{run.error ? <p className="w-full text-rose-600">{run.error}</p> : null}</div>)}</div></details> : null}
 							</div>
 						))}
 					</div>

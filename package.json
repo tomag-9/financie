@@ -11,7 +11,7 @@
     "test": "tsx --test tests/**/*.test.ts",
     "postinstall": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
-    "db:migrate": "tsx scripts/ensure-sqlite-db.ts && prisma migrate deploy",
+    "db:migrate": "tsx scripts/ensure-sqlite-db.ts",
     "seed:encrypt": "tsx scripts/encrypt-seed-file.ts",
     "seed:decrypt": "tsx scripts/decrypt-seed-file.ts"
   },

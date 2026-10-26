@@ -42,6 +42,7 @@ export async function GET() {
 
   const alarms = await prisma.aiAlarm.findMany({
     orderBy: [{ isEnabled: 'desc' }, { time: 'asc' }],
+    include: { runs: { orderBy: { startedAt: 'desc' }, take: 5 } },
   })
 
   return NextResponse.json({
@@ -61,6 +62,15 @@ export async function GET() {
       runClaude: alarm.runClaude,
       runCodex: alarm.runCodex,
       lastTriggeredAt: alarm.lastTriggeredAt ? alarm.lastTriggeredAt.toISOString() : null,
+      runs: alarm.runs.map((run) => ({
+        id: run.id,
+        trigger: run.trigger,
+        status: run.status,
+        targets: run.targets,
+        error: run.error,
+        startedAt: run.startedAt.toISOString(),
+        finishedAt: run.finishedAt?.toISOString() ?? null,
+      })),
     })),
   })
 }

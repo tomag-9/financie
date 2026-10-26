@@ -223,6 +223,39 @@ async function runCommand(command: string): Promise<CommandOutput> {
   }
 }
 
+export async function runAlarmNow(alarmId: string): Promise<{ runId: string; status: string }> {
+  const alarm = await prisma.aiAlarm.findUnique({ where: { id: alarmId } })
+  if (!alarm) throw new Error('Alarm neexistuje.')
+  if (!alarm.runClaude && !alarm.runCodex) throw new Error('Alarm nemá vybraný žiadny AI cieľ.')
+
+  const targets = buildTargetLabel(alarm.runClaude, alarm.runCodex)
+  const run = await prisma.aiAlarmRun.create({
+    data: { alarmId: alarm.id, alarmLabel: alarm.label, trigger: 'manual', status: 'running', targets },
+  })
+  const responses: Array<{ target: string; body: string }> = []
+  const errors: string[] = []
+  const commands: Array<{ target: string; command: string }> = []
+  if (alarm.runClaude) commands.push({ target: 'Claude', command: process.env.CLAUDE_ALARM_COMMAND ?? DEFAULT_CLAUDE_COMMAND })
+  if (alarm.runCodex) commands.push({ target: 'Codex', command: process.env.CODEX_ALARM_COMMAND ?? DEFAULT_CODEX_COMMAND })
+
+  for (const item of commands) {
+    try {
+      const response = await runCommand(normalizeCommand(item.command))
+      responses.push({ target: item.target, body: response.body.slice(0, 2_000) })
+    } catch (error) {
+      errors.push(`${item.target}: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  const status = errors.length ? 'failed' : 'success'
+  await prisma.$transaction([
+    prisma.aiAlarmRun.update({ where: { id: run.id }, data: { status, output: responses as Prisma.InputJsonValue, error: errors.join('\n') || null, finishedAt: new Date() } }),
+    prisma.aiAlarm.update({ where: { id: alarm.id }, data: { lastTriggeredAt: new Date() } }),
+    prisma.appLog.create({ data: { source: 'ai-alarm', level: errors.length ? 'error' : 'info', message: errors.length ? 'Manual run failed' : 'Manual run succeeded', details: { alarmId, runId: run.id, targets, errors } as Prisma.InputJsonValue } }),
+  ])
+  return { runId: run.id, status }
+}
+
 function normalizeCommand(command: string): string {
   const trimmed = command.trim()
   let normalized = trimmed
@@ -318,6 +351,26 @@ async function runDueAlarms() {
 
       seenAlarmIds.add(alarm.id)
 
+      let scheduledRun: { id: string }
+      try {
+        scheduledRun = await prisma.aiAlarmRun.create({
+          data: {
+            alarmId: alarm.id,
+            alarmLabel: alarm.label,
+            trigger: 'scheduled',
+            status: 'running',
+            targets: buildTargetLabel(alarm.runClaude, alarm.runCodex),
+            scheduledFor: minute,
+          },
+          select: { id: true },
+        })
+      } catch (error) {
+        // Claiming the occurrence before execution prevents duplicate workers
+        // from running the same alarm minute twice.
+        if ((error as { code?: string }).code === 'P2002') continue
+        throw error
+      }
+
       const commands: Array<{ target: 'Claude' | 'Codex'; command: string }> = []
       if (alarm.runClaude) {
         commands.push({
@@ -361,6 +414,16 @@ async function runDueAlarms() {
 
       if (didAttempt) {
         const targetLabel = buildTargetLabel(alarm.runClaude, alarm.runCodex)
+
+        await prisma.aiAlarmRun.update({
+          where: { id: scheduledRun.id },
+          data: {
+            status: commandErrors.length ? 'failed' : 'success',
+            output: commandResponses as Prisma.InputJsonValue,
+            error: commandErrors.join('\n') || null,
+            finishedAt: new Date(),
+          },
+        })
 
         if (commandErrors.length === 0) {
           console.info('[ai-alarm] reset verified', {

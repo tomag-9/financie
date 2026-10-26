@@ -39,10 +39,11 @@ function sourceLabel(value: string): string {
   return value.replace(/[-_]/g, ' ')
 }
 
-export function LogsPanel({ logs }: { logs: LogEntry[] }) {
+export function LogsPanel({ logs, errorsLast24Hours }: { logs: LogEntry[]; errorsLast24Hours: number }) {
   const [sortKey, setSortKey] = useState<SortKey>('newest')
   const [levelFilter, setLevelFilter] = useState<string>('all')
   const [sourceFilter, setSourceFilter] = useState<string>('all')
+  const [query, setQuery] = useState('')
 
   const sources = useMemo(() => Array.from(new Set(logs.map((log) => log.source))).sort(), [logs])
   const levels = useMemo(() => Array.from(new Set(logs.map((log) => log.level))).sort(), [logs])
@@ -51,6 +52,10 @@ export function LogsPanel({ logs }: { logs: LogEntry[] }) {
     const filtered = logs.filter((log) => {
       if (levelFilter !== 'all' && log.level !== levelFilter) return false
       if (sourceFilter !== 'all' && log.source !== sourceFilter) return false
+      if (query.trim()) {
+        const haystack = `${log.message} ${log.source} ${JSON.stringify(log.details ?? {})}`.toLowerCase()
+        if (!haystack.includes(query.trim().toLowerCase())) return false
+      }
       return true
     })
 
@@ -60,7 +65,17 @@ export function LogsPanel({ logs }: { logs: LogEntry[] }) {
       if (sortKey === 'level') return (levelOrder[left.level] ?? 99) - (levelOrder[right.level] ?? 99) || new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
       return left.source.localeCompare(right.source) || new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
     })
-  }, [logs, sortKey, levelFilter, sourceFilter])
+  }, [logs, sortKey, levelFilter, sourceFilter, query])
+
+  function exportDiagnostics() {
+    const payload = JSON.stringify({ exportedAt: new Date().toISOString(), logs: sortedLogs }, null, 2)
+    const url = URL.createObjectURL(new Blob([payload], { type: 'application/json' }))
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `financie-diagnostics-${new Date().toISOString().slice(0, 10)}.json`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
@@ -68,11 +83,12 @@ export function LogsPanel({ logs }: { logs: LogEntry[] }) {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500 dark:text-zinc-400">Logs</p>
-            <h3 className="mt-1 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">AI runner activity</h3>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">Filter and sort recent scheduler events, push attempts, and errors.</p>
+            <h3 className="mt-1 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Aktivita aplikácie</h3>
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">{errorsLast24Hours} chýb za posledných 24 hodín · {logs.length} záznamov.</p>
           </div>
 
           <div className="flex flex-wrap gap-2 text-sm">
+            <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Hľadať v logoch…" className="min-w-44 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900" />
             <select
               value={sortKey}
               onChange={(event) => setSortKey(event.target.value as SortKey)}
@@ -83,6 +99,7 @@ export function LogsPanel({ logs }: { logs: LogEntry[] }) {
               <option value="level">Level</option>
               <option value="source">Source</option>
             </select>
+            <button type="button" onClick={exportDiagnostics} className="rounded-xl border border-zinc-200 px-3 py-2 font-medium hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800">Export JSON</button>
 
             <select
               value={levelFilter}

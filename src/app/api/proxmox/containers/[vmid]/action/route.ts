@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { getAllowedContainerIds, ProxmoxConfigurationError, runContainerAction, type ProxmoxAction } from '@/lib/proxmox'
+import { writeAppLog } from '@/lib/app-log'
 
 export const runtime = 'nodejs'
 
@@ -35,10 +36,12 @@ export async function POST(request: Request, context: { params: Promise<{ vmid: 
     }
 
     const taskId = await runContainerAction(vmid, action as ProxmoxAction)
+    await writeAppLog('proxmox', 'info', 'Container action accepted', { vmid, action, taskId })
     return NextResponse.json({ ok: true, taskId }, { status: 202 })
   } catch (error) {
     const isConfigurationError = error instanceof ProxmoxConfigurationError
     console.error(`[proxmox] Failed to ${action} CT ${vmid}:`, error)
+    await writeAppLog('proxmox', 'error', 'Container action failed', { vmid, action, error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json(
       { error: isConfigurationError ? error.message : `Akciu ${action} sa nepodarilo spustiť.` },
       { status: isConfigurationError ? 503 : 502 },
