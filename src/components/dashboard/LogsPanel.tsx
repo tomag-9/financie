@@ -84,11 +84,11 @@ export function LogsPanel({ logs, errorsLast24Hours }: { logs: LogEntry[]; error
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500 dark:text-zinc-400">Logs</p>
             <h3 className="mt-1 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Aktivita aplikácie</h3>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">{errorsLast24Hours} chýb za posledných 24 hodín · {logs.length} záznamov.</p>
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">{errorsLast24Hours} chýb za posledných 24 hodín · zobrazené sú iba errory.</p>
           </div>
 
-          <div className="flex flex-wrap gap-2 text-sm">
-            <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Hľadať v logoch…" className="min-w-44 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900" />
+          <div className="grid w-full grid-cols-1 gap-2 text-sm sm:flex sm:w-auto sm:flex-wrap">
+            <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Hľadať v logoch…" className="min-w-0 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 sm:min-w-44" />
             <select
               value={sortKey}
               onChange={(event) => setSortKey(event.target.value as SortKey)}

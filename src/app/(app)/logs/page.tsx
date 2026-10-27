@@ -14,7 +14,7 @@ export default async function LogsPage() {
   const dayAgo = new Date()
   dayAgo.setDate(dayAgo.getDate() - 1)
   const [logs, errorsLast24Hours] = await Promise.all([
-    prisma.appLog.findMany({ orderBy: { createdAt: 'desc' }, take: 500 }),
+    prisma.appLog.findMany({ where: { level: 'error' }, orderBy: { createdAt: 'desc' }, take: 500 }),
     prisma.appLog.count({ where: { level: 'error', createdAt: { gte: dayAgo } } }),
   ])
 

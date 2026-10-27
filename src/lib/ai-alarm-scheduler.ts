@@ -219,7 +219,14 @@ async function runCommand(command: string): Promise<CommandOutput> {
     const output = stderr
     const message = typeof commandError.message === 'string' ? commandError.message : String(error)
 
-    throw new Error(output ? `${message}: ${output}` : message)
+    const combined = output ? `${message}: ${output}` : message
+    if (/no such container|cannot connect to the docker daemon|permission denied.*docker|docker.*not found/i.test(combined)) {
+      throw new Error(`Docker/ai-runner problém: ${combined}`)
+    }
+    if (/login|log in|authenticate|authentication|unauthorized|not authenticated|token|api key|credential/i.test(combined)) {
+      throw new Error(`AI kontajner pravdepodobne nie je prihlásený: ${combined}`)
+    }
+    throw new Error(combined)
   }
 }
 
@@ -310,16 +317,6 @@ async function runDueAlarms() {
     from: start.toISOString(),
     to: end.toISOString(),
   })
-  await recordAppLog({
-    level: 'info',
-    message: 'Tick start',
-    details: {
-      now: now.toISOString(),
-      from: start.toISOString(),
-      to: end.toISOString(),
-      tickIndex,
-    },
-  })
 
   if (tickIndex % 6 === 0) {
     console.info('[ai-alarm] tick window', {
@@ -327,16 +324,6 @@ async function runDueAlarms() {
       from: start.toISOString(),
       to: end.toISOString(),
       minuteCount: minutes.length,
-    })
-    await recordAppLog({
-      level: 'debug',
-      message: 'Hourly tick summary',
-      details: {
-        tickIndex,
-        from: start.toISOString(),
-        to: end.toISOString(),
-        minuteCount: minutes.length,
-      },
     })
   }
 
@@ -430,18 +417,6 @@ async function runDueAlarms() {
             alarmId: alarm.id,
             label: alarm.label,
             responses: commandResponses,
-          })
-          await recordAppLog({
-            level: 'info',
-            message: 'Reset verified',
-            details: {
-              alarmId: alarm.id,
-              label: alarm.label,
-              minute: minute.toISOString(),
-              targetLabel,
-              commandCount: commands.length,
-              responses: commandResponses,
-            },
           })
         }
 
@@ -550,16 +525,6 @@ async function runDueAlarms() {
           console.info('[ai-alarm] alarm updated', {
             alarmId: alarm.id,
             label: alarm.label,
-          })
-          await recordAppLog({
-            level: 'info',
-            message: 'Alarm updated',
-            details: {
-              alarmId: alarm.id,
-              label: alarm.label,
-              minute: minute.toISOString(),
-              isRepeat: alarm.isRepeat,
-            },
           })
         } catch (error) {
           console.error('[ai-alarm] failed to update alarm', {
